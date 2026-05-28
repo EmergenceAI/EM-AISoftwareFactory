@@ -1,0 +1,22 @@
+{
+  "name": "em-software-factory",
+  "version": "1.0.0",
+  "description": "SDLC skills, Atlassian integration, and development workflow tools for the EM-AISoftwareFactory repository",
+  "author": {
+    "name": "EmergenceAI",
+    "url": "https://github.com/EmergenceAI"
+  },
+  "repository": "https://github.com/EmergenceAI/EM-AISoftwareFactory",
+  "license": "UNLICENSED",
+  "keywords": [
+    "sdlc",
+    "jira",
+    "confluence",
+    "atlassian",
+    "code-review",
+    "implementation-planning",
+    "e2e-testing"
+  ],
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}
