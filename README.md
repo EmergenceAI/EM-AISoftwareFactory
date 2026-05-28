@@ -9,7 +9,7 @@ EM AI Software Factory is a collection of intelligent agents and tooling designe
 ## Components
 
 ### Claude Plugin
-Located in `.claude/plugins/em-software-factory/`, this plugin provides:
+This repository is a Claude Code plugin that provides:
 
 - **SDLC Skills**: Automated workflows for common development tasks
   - Code review and quality checks
@@ -51,7 +51,7 @@ This plugin can be installed in other repositories as a git submodule:
 cd /path/to/your/repo
 
 # Add as submodule
-git submodule add git@github.com:EmergenceAI/em-software-factory-plugin.git .claude/plugins/em-software-factory
+git submodule add https://github.com/EmergenceAI/EM-AISoftwareFactory.git .claude/plugins/em-software-factory
 
 # Commit the submodule
 git add .gitmodules .claude/plugins/em-software-factory
@@ -75,8 +75,8 @@ Once installed, the plugin's skills are available through Claude Code:
 ## Configuration
 
 The plugin uses hooks and MCP configurations defined in:
-- `.claude/plugins/em-software-factory/hooks/hooks.json`
-- `.claude/plugins/em-software-factory/.mcp.json`
+- `hooks/hooks.json`
+- `.mcp.json`
 
 ## Development
 
