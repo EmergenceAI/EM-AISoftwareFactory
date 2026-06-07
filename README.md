@@ -115,10 +115,10 @@ In Claude Code, run `/mcp` to verify the `atlassian` server is connected and hea
 - `/update-e2e-testplan` - Update existing test plans
 - `/dogfood` - Dogfooding workflow and reporting
 
-**Bug Tracking:**
+**Bug Tracking & Epic Management:**
 - `/create-bug` - Create structured bug reports
 - `/create-bug-from-video` - Create bugs from video recordings
-- `/create-epic` - Create epic documentation
+- `/create-epic` - Create epic documentation (single or batch from table)
 
 **Database:**
 - `/generate-migration` - Generate database migrations
@@ -219,6 +219,25 @@ git add .
 
 # Then ask your question
 "How does authentication work in this codebase?"
+```
+
+### Create Epic (Single)
+```bash
+# Interactive epic creation
+/create-epic "Build Your Own Workflow"
+
+# Claude will guide you through each section collaboratively
+```
+
+### Create Epics (Batch from Table)
+```bash
+# From CSV file
+/create-epic --from-table roadmap-q2-2026.csv
+
+# From Excel spreadsheet
+/create-epic --from-table epic-planning.xlsx
+
+# Claude will preview all epics before creating them in Jira
 ```
 
 ## Troubleshooting
