@@ -17,6 +17,7 @@
     "implementation-planning",
     "e2e-testing"
   ],
+  "skills": "./skills",
   "hooks": "./hooks/hooks.json",
   "mcpServers": "./.mcp.json"
 }
