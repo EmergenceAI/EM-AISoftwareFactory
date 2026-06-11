@@ -12,7 +12,21 @@ EM AI Software Factory is a collection of intelligent agents and tooling designe
 
 ## Installation
 
-### Option 1: Install as Git Submodule (Recommended)
+### Option 1: Install from EmergenceAI Marketplace (Easiest)
+
+If you have access to the EmergenceAI private plugin marketplace:
+
+```bash
+# Add the marketplace (first time only)
+/plugin marketplace add EmergenceAI/em-claude-plugins
+
+# Install the plugin
+/plugin install em-software-factory@em-plugins
+```
+
+Once installed, all skills are immediately available in any Claude Code session.
+
+### Option 2: Install as Git Submodule
 
 This plugin can be installed in any repository as a git submodule:
 
@@ -31,7 +45,7 @@ git add .gitmodules .claude/plugins/em-software-factory
 git commit -m "Add EM Software Factory plugin"
 ```
 
-### Option 2: Clone Directly
+### Option 3: Clone Directly
 
 ```bash
 # Navigate to your project's .claude directory
@@ -46,7 +60,9 @@ git clone https://github.com/EmergenceAI/EM-AISoftwareFactory.git plugins/em-sof
 
 ## Launching Claude Code
 
-To use the em-software-factory plugin, launch Claude Code with the `--plugin-dir` flag:
+**If installed from marketplace (Option 1):** Skills are automatically available in all Claude Code sessions. No additional flags needed.
+
+**If installed as submodule/clone (Options 2-3):** Launch Claude Code with the `--plugin-dir` flag:
 
 ```bash
 claude --plugin-dir .claude/plugins/em-software-factory
@@ -268,6 +284,12 @@ git add .
 - Launch with `--plugin-dir` flag
 
 ## Updating the Plugin
+
+### If installed from marketplace:
+```bash
+# Update to latest version
+/plugin marketplace update em-plugins
+```
 
 ### If installed as git submodule:
 ```bash
