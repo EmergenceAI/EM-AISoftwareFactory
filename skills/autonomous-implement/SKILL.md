@@ -21,6 +21,9 @@ Use this skill to:
 # Implement single issue
 /autonomous-implement ABI-123
 
+# With repository knowledge context (from orchestrator)
+/autonomous-implement ABI-123 --context-file /tmp/knowledge_context.md
+
 # With specific branch (if already created)
 /autonomous-implement ABI-123 --branch story/ABI-123-api-rate-limiting
 
@@ -29,7 +32,18 @@ Use this skill to:
 
 # Create PR even if evals fail (with warning label)
 /autonomous-implement ABI-123 --force-pr
+
+# Combined options
+/autonomous-implement ABI-123 --context-file /tmp/context.md --branch feature/ABI-123
 ```
+
+### Parameters
+
+- `issue_key` (required): Jira issue key (e.g., 'ABI-123')
+- `--context-file <path>`: Path to knowledge context file with repository architecture/patterns
+- `--branch <name>`: Use existing branch instead of creating new one
+- `--skip-eval-gen`: Skip evaluation generation step
+- `--force-pr`: Create PR even if evaluations fail
 
 ## Process Flow
 
@@ -57,7 +71,97 @@ Use this skill to:
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Knowledge Context Integration
+
+When invoked by the **workspace orchestrator**, this skill receives a knowledge context file containing:
+
+### Context File Contents
+
+```markdown
+# Repository Knowledge Context
+
+## Repository: runtime
+**Language:** Python
+**Build System:** poetry
+**Test Framework:** pytest
+
+## Architecture
+[Repository architecture patterns and design decisions]
+
+## Coding Patterns
+[Common patterns used in this repository]
+
+## Conventions
+- Imports: absolute only
+- Type hints: strict, all public APIs
+- Docstrings: Google style
+
+## Foundations Standards
+### Air-Gapped Requirements (CRITICAL)
+- NO cloud-specific APIs (GCP, AWS, Azure)
+- Helm charts must deploy without cloud provider
+...
+
+### Definition of Done
+1. 80% test coverage
+2. gitleaks passes
+3. Pacto contract valid
+...
+```
+
+### Using Knowledge Context
+
+If `--context-file` is provided:
+
+1. **Read context file** at the start of implementation
+2. **Extract key information**:
+   - Repository architecture patterns
+   - Coding conventions specific to this repo
+   - Foundations requirements (air-gapped, DoD)
+3. **Apply throughout implementation**:
+   - Use architecture patterns in plan
+   - Follow conventions in code
+   - Validate against Foundations requirements
+4. **Reference in commits/PRs**:
+   - Mention compliance with standards
+   - Note which patterns were followed
+
+**Example:**
+```bash
+# When context file is provided:
+/autonomous-implement ABI-123 --context-file /tmp/knowledge_context.md
+
+# Skill reads context first, then proceeds with normal flow
+# but uses repo-specific patterns and enforces standards
+```
+
+---
+
 ## Detailed Process
+
+### Step 0: Load Knowledge Context (if provided)
+
+If `--context-file` parameter is present:
+
+```javascript
+// Read knowledge context
+const contextFile = args['context-file']
+if (contextFile && fs.existsSync(contextFile)) {
+  const context = fs.readFileSync(contextFile, 'utf-8')
+  
+  // Extract key sections
+  const architecture = extractSection(context, 'Architecture')
+  const patterns = extractSection(context, 'Coding Patterns')
+  const conventions = extractSection(context, 'Conventions')
+  const foundations = extractSection(context, 'Foundations Standards')
+  
+  // These will be referenced throughout implementation
+  console.log('📚 Loaded repository knowledge context')
+  console.log(`   Architecture: ${architecture.length} chars`)
+  console.log(`   Patterns: ${patterns.length} chars`)
+  console.log(`   Foundations: ${foundations.length} chars`)
+}
+```
 
 ### Step 1: Fetch Jira Issue
 
@@ -96,6 +200,31 @@ This provides:
 - Potential conflicts or duplicates
 
 ### Step 3: Create Implementation Plan
+
+Use existing `/create-plan` skill, **enriched with knowledge context if available**:
+
+```bash
+# If knowledge context loaded, inject into planning prompt:
+/create-plan ${issueKey}
+
+# Additional context for planner when knowledge available:
+"Follow these repository-specific patterns:
+${patterns}
+
+Use this architecture approach:
+${architecture}
+
+Adhere to these conventions:
+${conventions}
+
+CRITICAL: Ensure air-gapped compatibility per Foundations standards:
+${foundations}"
+```
+
+The plan should:
+- Follow repository architecture patterns
+- Use coding conventions specified in context
+- Ensure Foundations requirements are met (air-gapped, test coverage, etc.)
 
 Use existing `/create-plan` skill:
 

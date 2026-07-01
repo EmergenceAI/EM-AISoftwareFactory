@@ -1,10 +1,70 @@
-# EM AI Software Factory
+# AI Software Factory - Engineering Operating System
+
+**Autonomous software delivery orchestrator** for multi-repository workspaces.
+
+> Transform Jira issues into tested, reviewed pull requests across 7 repositories with 80% automation and 20% strategic human checkpoints.
+
+---
+
+## 📖 Documentation
+
+**Complete documentation:** [docs/README.md](docs/README.md)
+
+### Quick Links
+
+- **[Quickstart Guide](docs/guides/QUICKSTART.md)** - Get started in 5 minutes
+- **[Architecture](docs/architecture/ENGINEERING_OS_ARCHITECTURE.md)** - System design
+- **[Testing Guide](docs/guides/TESTING_GUIDE.md)** - Run your first workflow
+- **[Setup Guides](docs/setup/)** - Knowledge extraction & silent mode
+
+---
+
+## What Is This?
+
+An **Engineering Operating System** that orchestrates software delivery across multiple repositories:
+
+### Key Features
+
+✅ **Automated Knowledge Management**
+- Extracts from README.md and docs/ automatically
+- Syncs before each run (only if changed)
+- Zero maintenance
+
+✅ **80/20 Autonomous Mode**
+- 9 skills run with 0 prompts (100% autonomous)
+- 3 skills with 1 checkpoint (95% autonomous)
+- 3 skills with 2-3 strategic checkpoints (80% autonomous)
+
+✅ **Multi-Repository Support**
+- Routes issues to correct repository automatically
+- Handles 7 repositories (runtime, runtime-ui, talk2data, data-readiness, semi, connectors, sdk)
+- Cross-repo dependency awareness
+
+✅ **Platform Standards Enforcement**
+- Air-gapped compatibility (CRITICAL)
+- 80% test coverage requirement
+- Pacto contract validation
+- gitleaks secret detection
+
+### The Architecture
+
+```
+Jira Issue → Router → Knowledge Engine → Planner → Executor → Reporter
+                ↓           ↓               ↓         ↓          ↓
+          Repository   Architecture    Task Graph  Multi-    Sprint
+          Selection    Patterns        Dependencies Agent     Metrics
+                       Conventions                 Parallel
+```
+
+**See [Architecture Docs](docs/architecture/) for complete system design.**
+
+---
+
+## Quick Start
+
+### Current Plugin (Still Works)
 
 A comprehensive Claude Code plugin powered by AI agents for automating and enhancing the Software Development Lifecycle (SDLC).
-
-## Overview
-
-EM AI Software Factory is a collection of intelligent agents and tooling designed to streamline software development processes. This platform provides automated workflows, quality checks, and development assistance across the entire SDLC with Jira and Confluence integration via MCP.
 
 ## Requirements
 
