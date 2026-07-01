@@ -18,8 +18,10 @@ When you run:
 The skill will:
 
 1. ✅ **Fetch Jira issue** SEMI-1413
-2. ✅ **Determine issue type** (Story, Bug, Task, etc.)
-3. ✅ **Create branch** following naming convention:
+2. ✅ **Switch to main/master** branch (fetch latest)
+3. ✅ **Pull latest changes** from remote
+4. ✅ **Determine issue type** (Story, Bug, Task, etc.)
+5. ✅ **Create branch from main** following naming convention:
 
 ```
 {issue-type}/{issue-key}-{slug}
@@ -35,6 +37,11 @@ Examples:
 - Issue type prefix (story, bug, task, epic)
 - Issue key (SEMI-1413)
 - Slugified summary from Jira
+
+**Branch base:**
+- ✅ **ALWAYS created from main/master** (never from current branch)
+- ✅ Latest changes pulled before branching
+- ✅ Clean branch with no unrelated changes
 
 ---
 

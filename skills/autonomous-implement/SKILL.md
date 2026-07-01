@@ -51,23 +51,25 @@ Use this skill to:
 ┌─────────────────────────────────────────────────────────┐
 │ 1. Fetch Jira Issue                                     │
 │    ↓                                                     │
-│ 2. Research Codebase (existing /research-codebase)      │
+│ 2. Create Branch from main/master (CRITICAL)            │
 │    ↓                                                     │
-│ 3. Create Plan (existing /create-plan)                  │
+│ 3. Research Codebase (existing /research-codebase)      │
 │    ↓                                                     │
-│ 4. Generate Evals (/eval-generator)                     │
+│ 4. Create Plan (existing /create-plan)                  │
 │    ↓                                                     │
-│ 5. Implement (existing /implement-plan)                 │
+│ 5. Generate Evals (/eval-generator)                     │
 │    ↓                                                     │
-│ 6. Run Evals (pytest)                                   │
+│ 6. Implement (existing /implement-plan)                 │
+│    ↓                                                     │
+│ 7. Run Evals (pytest)                                   │
 │    ├─ PASS → Continue                                   │
 │    └─ FAIL → Retry (max 3 attempts)                     │
 │         ↓                                                │
-│ 7. Create PR (existing /create-pr)                      │
+│ 8. Create PR (existing /create-pr)                      │
 │    ↓                                                     │
-│ 8. Code Review (existing /code-review)                  │
+│ 9. Code Review (existing /code-review)                  │
 │    ↓                                                     │
-│ 9. Update Jira (/jira-update)                           │
+│ 10. Update Jira (/jira-update)                          │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -179,8 +181,76 @@ Extract:
 - Acceptance criteria
 - Linked issues/dependencies
 - Current status
+- Issue type (for branch naming)
 
-### Step 2: Research Codebase
+### Step 2: Create Branch from Main
+
+**CRITICAL:** Always create new branch from main/master to avoid including unrelated changes.
+
+**If --branch parameter NOT provided:**
+
+```bash
+# Fetch latest from remote
+git fetch origin
+
+# Switch to main branch (or master if main doesn't exist)
+git checkout main || git checkout master
+
+# Pull latest changes
+git pull origin main || git pull origin master
+
+# Create branch name from issue
+# Format: {type}/{key}-{slug}
+# Example: story/SEMI-1413-fix-wafer-processing
+branchName=$(generate_branch_name issue)
+
+# Create and checkout new branch from main
+git checkout -b ${branchName}
+
+# Verify we're on the new branch
+git branch --show-current  # Should output: ${branchName}
+```
+
+**Branch naming convention:**
+
+```javascript
+function generateBranchName(issue) {
+  const typeMap = {
+    'Story': 'story',
+    'Bug': 'bug', 
+    'Task': 'task',
+    'Epic': 'epic',
+    'Sub-task': 'subtask'
+  }
+  
+  const prefix = typeMap[issue.issuetype.name] || 'feature'
+  const slug = issue.summary
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .substring(0, 50)
+  
+  return `${prefix}/${issue.key}-${slug}`
+}
+```
+
+**If --branch parameter IS provided:**
+
+```bash
+# User specified existing branch, just checkout
+git checkout ${providedBranchName}
+
+# Verify we're on the correct branch
+git branch --show-current
+```
+
+**Why this matters:**
+- ✅ Clean branch from main = no unrelated changes in PR
+- ✅ Predictable base for code review
+- ✅ Avoids merge conflicts from stale branches
+- ❌ Creating from current branch risks including WIP changes
+
+### Step 3: Research Codebase
 
 Use existing `/research-codebase` skill to understand context:
 
@@ -199,7 +269,7 @@ This provides:
 - Test structure to match
 - Potential conflicts or duplicates
 
-### Step 3: Create Implementation Plan
+### Step 4: Create Implementation Plan
 
 Use existing `/create-plan` skill, **enriched with knowledge context if available**:
 
@@ -261,7 +331,7 @@ Implement API rate limiting using Redis...
 - Performance tests for latency
 ```
 
-### Step 4: Generate Evals from Acceptance Criteria
+### Step 5: Generate Evals from Acceptance Criteria
 
 Use `/eval-generator` to create validation tests:
 
@@ -275,7 +345,7 @@ Creates `tests/evals/${issueKey}/` with:
 - `test_quality.py` - Coverage and quality gates
 - `conftest.py` - Test fixtures
 
-### Step 5: Implement the Plan
+### Step 6: Implement the Plan
 
 Use existing `/implement-plan` skill:
 
@@ -289,7 +359,7 @@ Executes implementation:
 - Writes initial tests
 - Updates documentation
 
-### Step 6: Run Evals
+### Step 7: Run Evals
 
 Execute generated eval tests:
 
@@ -341,7 +411,7 @@ while (attempt <= maxAttempts) {
 }
 ```
 
-### Step 7: Create Pull Request
+### Step 8: Create Pull Request
 
 If evals pass, use existing `/create-pr` skill:
 
@@ -392,7 +462,7 @@ pytest tests/evals/ABI-123/ -v
 - Include failure details in PR description
 - Request manual review
 
-### Step 8: Automated Code Review
+### Step 9: Automated Code Review
 
 Run existing `/code-review` skill on the PR:
 
@@ -405,7 +475,7 @@ Posts review comments:
 - Warnings (code smells, performance)
 - Suggestions (style, readability)
 
-### Step 9: Update Jira
+### Step 10: Update Jira
 
 Use `/jira-update` to sync status:
 
