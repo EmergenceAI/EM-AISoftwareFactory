@@ -1,0 +1,174 @@
+{
+  "_comment": "AI Software Factory - Default Autonomous Configuration (80/20 mode)",
+  "_description": "These settings make the factory work autonomously by default. Developers can override with .claude/settings.local.json",
+
+  "autonomous": {
+    "enabled": true,
+    "mode": "80-20",
+    "description": "80% autonomous execution, 20% strategic human checkpoints"
+  },
+
+  "permissions": {
+    "autoApprove": {
+      "Read": true,
+      "ToolSearch": true,
+      "mcp_*": "read_only"
+    },
+
+    "Write": {
+      "enabled": true,
+      "rules": [
+        {
+          "pattern": "specs/**/*",
+          "autoApprove": true,
+          "description": "Auto-approve specification files"
+        },
+        {
+          "pattern": "tests/**/*",
+          "autoApprove": true,
+          "description": "Auto-approve test files"
+        },
+        {
+          "pattern": "src/**/*.py",
+          "autoApprove": true,
+          "backup": true,
+          "description": "Auto-approve Python source with backup"
+        },
+        {
+          "pattern": "src/**/*.ts",
+          "autoApprove": true,
+          "backup": true,
+          "description": "Auto-approve TypeScript source with backup"
+        },
+        {
+          "pattern": "*.md",
+          "autoApprove": true,
+          "description": "Auto-approve documentation"
+        },
+        {
+          "pattern": ".env*",
+          "autoApprove": false,
+          "description": "NEVER auto-approve environment files"
+        },
+        {
+          "pattern": "secrets/**/*",
+          "autoApprove": false,
+          "description": "NEVER auto-approve secrets"
+        }
+      ],
+      "maxFilesPerOperation": 50,
+      "createBackup": true
+    },
+
+    "Edit": {
+      "enabled": true,
+      "autoApprove": true,
+      "createBackup": true,
+      "description": "Auto-approve edits with automatic backups"
+    },
+
+    "Bash": {
+      "allowedPatterns": [
+        "git status",
+        "git diff",
+        "git diff *",
+        "git log",
+        "git log *",
+        "git show *",
+        "git branch",
+        "git branch -l",
+        "git checkout -b *",
+        "git add *",
+        "git commit *",
+        "git push *",
+        "poetry install",
+        "poetry run *",
+        "poetry build",
+        "pnpm install",
+        "pnpm *",
+        "npm install",
+        "npm run *",
+        "npm test",
+        "pytest *",
+        "python -m pytest *",
+        "vitest *",
+        "docker ps",
+        "docker images",
+        "docker build *",
+        "docker run --rm *",
+        "docker-compose up -d",
+        "docker-compose down",
+        "docker-compose logs *",
+        "ls *",
+        "find *",
+        "grep *",
+        "cat *",
+        "head *",
+        "tail *",
+        "gh pr list",
+        "gh pr view *",
+        "gh pr create *",
+        "gh pr merge *",
+        "gh issue list",
+        "gh issue view *"
+      ],
+
+      "blockedPatterns": [
+        "*rm -rf*",
+        "*sudo *",
+        "*chmod 777*",
+        "*>/dev/null 2>&1*",
+        "*git reset --hard*",
+        "*git push --force*",
+        "*git clean -f*"
+      ],
+
+      "autoApprove": "allowedOnly",
+      "timeout": 300000
+    }
+  },
+
+  "checkpoints": {
+    "beforeCommit": false,
+    "beforePush": false,
+    "beforePR": true,
+    "onTestFailure": true,
+    "onEvalFailure": true,
+    "onMultiRepo": true,
+    "onArchitectureChange": true,
+    "onSecurityChange": true,
+
+    "escalation": {
+      "maxFilesChanged": 50,
+      "maxReposAffected": 3,
+      "criticalPaths": [
+        "src/auth/**/*",
+        "src/security/**/*",
+        ".env*",
+        "secrets/**/*"
+      ]
+    }
+  },
+
+  "safety": {
+    "worktreeIsolation": true,
+    "createBackups": true,
+    "validateBeforeCommit": true,
+    "rollbackOnFailure": true,
+    "dryRunFirst": false,
+
+    "preCommitChecks": [
+      "lint",
+      "format-check",
+      "test-changed"
+    ]
+  },
+
+  "foundations": {
+    "description": "Foundations team standards integration",
+    "enforceAirGapped": true,
+    "enforceTestCoverage": 80,
+    "requirePactoContract": true,
+    "requireGitleaksPass": true
+  }
+}

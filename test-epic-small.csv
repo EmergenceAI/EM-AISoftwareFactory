@@ -1,0 +1,6 @@
+Title,Vision,Overview,Current State,Desired State,Impact,Success Criteria,User Value,Business Impact,Strategic Alignment,Project,Priority,Labels
+"Test Epic - Batch Creation","Enable automated epic creation from structured data","Build batch epic creation capability for the create-epic skill","Currently epics are created one at a time through interactive mode","- Batch creation from CSV/Excel files
+- Support for multiple epics in one operation
+- Preview all epics before creation","Saves time for roadmap planning and reduces manual data entry","- Parse CSV files successfully
+- Create multiple epics in one session
+- Preserve all epic sections","Product managers can import epic roadmaps from spreadsheets","Reduces epic creation time by 80%","Enables efficient roadmap planning and execution",ABI,Medium,"test,automation"
