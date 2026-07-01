@@ -1,0 +1,213 @@
+# Emergence AI Workspace Configuration
+# Defines all repositories managed by the AI Software Factory
+
+workspace:
+  name: emergence-platform
+  root: /Users/malamunisamy/Documents/Development
+  description: Emergence AI platform workspace with multi-repository orchestration
+
+# Repository definitions
+# Each repository is treated as a plugin with standardized adapter interface
+repositories:
+  - name: runtime
+    display_name: EM Runtime
+    path: em-runtime
+    github: EmergenceAI/em-runtime
+    adapter: adapters.runtime
+    primary_language: python
+    build_system: poetry
+    test_framework: pytest
+    description: Core workflow orchestration and execution engine
+    jira_component: Runtime
+
+  - name: runtime-ui
+    display_name: EM Runtime UI
+    path: em-runtime-ui
+    github: EmergenceAI/em-runtime-ui
+    adapter: adapters.ui
+    primary_language: typescript
+    build_system: pnpm
+    test_framework: vitest
+    description: Web-based UI for runtime management
+    jira_component: UI
+
+  - name: talk2data
+    display_name: EM Talk2Data
+    path: em-talk2data
+    github: EmergenceAI/em-talk2data
+    adapter: adapters.talk2data
+    primary_language: python
+    build_system: poetry
+    test_framework: pytest
+    description: Natural language to data query interface
+    jira_component: Talk2Data
+
+  # Note: Connectors are a module within em-runtime, not a separate repo
+  # Connector-related issues should route to runtime repository
+  # - name: connectors
+  #   display_name: EM Connectors
+  #   path: em-connectors
+  #   jira_component: Connectors
+
+  # Note: SDK is not a separate repository in this workspace
+  # - name: sdk
+  #   display_name: EM SDK
+  #   path: em-sdk
+  #   jira_component: SDK
+
+  - name: data-readiness
+    display_name: EM Data Readiness
+    path: em-data-readiness
+    github: EmergenceAI/em-data-readiness
+    adapter: adapters.data_readiness
+    primary_language: python
+    build_system: poetry
+    test_framework: pytest
+    description: Data quality and readiness assessment tools
+    jira_component: Data Readiness
+
+  - name: semi
+    display_name: EM Semi
+    path: em-semi
+    github: EmergenceAI/em-semi
+    adapter: adapters.semi
+    primary_language: python
+    build_system: docker
+    test_framework: pytest
+    description: Semiconductor fabrication platform with AI-assisted data analysis
+    jira_component: Semi
+
+# Repository dependency graph
+# Defines build and deployment order
+# Note: SDK and Connectors are modules within runtime, not separate repos
+dependencies:
+  - source: runtime
+    target: runtime-ui
+    reason: UI consumes Runtime API
+
+  - source: runtime
+    target: talk2data
+    reason: Talk2Data integrates with Runtime (includes SDK and connectors)
+
+  - source: runtime
+    target: data-readiness
+    reason: Data Readiness uses Runtime components
+
+# Jira integration configuration
+jira:
+  url: https://your-company.atlassian.net
+  project_key: ABI
+  custom_fields:
+    repository: customfield_10042      # Which repo this issue targets
+    epic_link: customfield_10014        # Epic linkage
+    story_points: customfield_10016     # Story points
+
+  # Component to repository mapping
+  component_mapping:
+    Runtime: runtime
+    UI: runtime-ui
+    Talk2Data: talk2data
+    Connectors: runtime       # Connectors are in em-runtime repo
+    SDK: runtime              # SDK components are in em-runtime repo
+    "Data Readiness": data-readiness
+    Semi: semi
+
+# Confluence integration
+confluence:
+  url: https://your-company.atlassian.net/wiki
+  space_key: TECH
+  documentation_parent: 123456789      # Parent page ID for generated docs
+
+  # Page structure
+  page_structure:
+    architecture: Architecture
+    adrs: Architecture Decision Records
+    runbooks: Runbooks
+    apis: API Documentation
+
+# Git conventions
+git:
+  default_branch: main
+  branch_patterns:
+    story: "story/{issue-key}-{summary-slug}"
+    bug: "bugfix/{issue-key}-{summary-slug}"
+    epic: "epic/{issue-key}-{summary-slug}"
+    task: "task/{issue-key}-{summary-slug}"
+
+  commit_message_format: conventional  # conventional | simple
+
+  pr_labels:
+    breaking: breaking-change
+    documentation: documentation
+    enhancement: enhancement
+    bug: bug
+
+# Code quality standards
+quality:
+  # Python standards
+  python:
+    linter: ruff
+    formatter: black
+    type_checker: mypy
+    min_coverage: 80
+
+  # TypeScript standards
+  typescript:
+    linter: eslint
+    formatter: prettier
+    type_checker: tsc
+    min_coverage: 70
+
+  # Security
+  security:
+    secrets_detection: true
+    dependency_scanning: true
+    sast: true
+
+# Testing strategy
+testing:
+  unit:
+    required: true
+    min_coverage: 80
+
+  integration:
+    required: true
+    min_coverage: 60
+
+  e2e:
+    required_for:
+      - runtime-ui
+      - talk2data
+    min_coverage: 50
+
+# AI Factory configuration
+factory:
+  orchestrator:
+    max_concurrent_tasks: 8
+    retry_on_failure: 3
+    timeout_minutes: 30
+
+  knowledge_engine:
+    cache_ttl_hours: 24
+    auto_refresh: true
+
+  execution_engine:
+    default: claude-code
+    alternatives:
+      - openai
+      - anthropic
+
+  evals:
+    enabled: true
+    auto_generate: true
+    pass_threshold: 0.8
+    retry_on_fail: 3
+
+  reporting:
+    formats:
+      - markdown
+      - json
+    destinations:
+      - local
+      - confluence
+      - slack
