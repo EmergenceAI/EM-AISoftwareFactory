@@ -1,16 +1,16 @@
-# AI Software Factory - Documentation
+# Documentation
 
-Complete documentation for the Engineering Operating System.
+Complete documentation for AI Software Factory.
 
 ---
 
-## Quick Start
+## Getting Started
 
-**New to the factory?** Start here:
-
-1. [Quickstart Guide](guides/QUICKSTART.md) - Get up and running in 5 minutes
-2. [Architecture Overview](architecture/ENGINEERING_OS_ARCHITECTURE.md) - Understand how it works
-3. [Testing Guide](guides/TESTING_GUIDE.md) - Run your first autonomous workflow
+| Doc | Description | Time |
+|-----|-------------|------|
+| **[Quick Start](guides/QUICKSTART.md)** | Get started in 5 minutes | 5 min |
+| **[Orchestrator Guide](guides/ORCHESTRATOR_GUIDE.md)** | Complete orchestrator usage | 15 min |
+| **[Main README](../README.md)** | Overview and installation | 10 min |
 
 ---
 
