@@ -39,23 +39,6 @@ def load_workspace_config() -> dict:
         return yaml.safe_load(f)
 
 
-def get_jira_issue(issue_key: str) -> dict:
-    """
-    Fetch Jira issue details via MCP Atlassian tools.
-
-    Delegates to jira_mcp module which handles:
-    - Real Jira fetching when MCP is available
-    - Mock data fallback for testing/development
-
-    Args:
-        issue_key: Jira issue key (e.g., 'ABI-123')
-
-    Returns:
-        Issue data dictionary
-    """
-    return jira_mcp.get_issue(issue_key)
-
-
 def cmd_implement(args):
     """Implement a single Jira issue with workspace-level orchestration."""
 
@@ -67,19 +50,26 @@ def cmd_implement(args):
     workspace_config = load_workspace_config()
     factory_root = Path(__file__).parent.parent
 
-    # Fetch Jira issue
-    print(f"📋 Fetching issue: {args.issue_key}")
-    issue = get_jira_issue(args.issue_key)
-    print(f"   Summary: {issue['summary']}\n")
-
     # Route to repository (unless explicitly specified)
+    print(f"📋 Issue: {args.issue_key}")
+
     if args.repo:
         repository = args.repo
         print(f"🎯 Repository: {repository} (explicit)")
     else:
+        # Route based on issue key prefix
         router = Router(workspace_config)
-        repository = router.route_issue(issue)
-        print(f"🎯 Repository: {repository} (auto-routed)")
+        component = jira_mcp.get_issue_component(args.issue_key)
+        repository = jira_mcp.get_repository_for_issue(
+            args.issue_key,
+            workspace_config.get('jira', {}).get('component_mapping', {})
+        )
+
+        if not repository:
+            repository = 'runtime'  # Default
+            print(f"🎯 Repository: {repository} (default - unknown component)")
+        else:
+            print(f"🎯 Repository: {repository} (routed from {component})")
 
     print()
 
