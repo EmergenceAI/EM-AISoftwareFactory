@@ -2,19 +2,23 @@
 
 A comprehensive Claude Code plugin powered by AI agents for automating and enhancing the Software Development Lifecycle (SDLC).
 
-## Overview
-
-EM AI Software Factory is a collection of intelligent agents and tooling designed to streamline software development processes. This platform provides automated workflows, quality checks, and development assistance across the entire SDLC with Jira and Confluence integration via MCP.
-
-## Requirements
-
-- **Claude Code v2.1.81 or later** — required for plugin support. Install or update via: https://docs.anthropic.com/en/docs/claude-code/getting-started
-
 ## Installation
 
-### Option 1: Install as Git Submodule (Recommended)
+### Requirements
 
-This plugin can be installed in any repository as a git submodule:
+- **Claude Code v2.1.81 or later** — required for plugin support
+- Install or update: https://docs.anthropic.com/en/docs/claude-code/getting-started
+
+### Option 1: Install from Private Marketplace (Easiest)
+
+```bash
+# In Claude Code
+/plugin install em-software-factory@em-plugins
+```
+
+This installs the plugin from the private EmergenceAI marketplace. All skills will be available immediately without additional configuration.
+
+### Option 2: Install as Git Submodule (Recommended for Development)
 
 ```bash
 # Navigate to your target repository
@@ -31,7 +35,7 @@ git add .gitmodules .claude/plugins/em-software-factory
 git commit -m "Add EM Software Factory plugin"
 ```
 
-### Option 2: Clone Directly
+### Option 3: Clone Directly
 
 ```bash
 # Navigate to your project's .claude directory
@@ -44,59 +48,50 @@ mkdir -p plugins
 git clone https://github.com/EmergenceAI/EM-AISoftwareFactory.git plugins/em-software-factory
 ```
 
-## Launching Claude Code
+### Option 4: Use Relative Path
 
-To use the em-software-factory plugin, launch Claude Code with the `--plugin-dir` flag:
+If both repos are in the same parent directory:
+
+```bash
+# From your working repository
+claude --plugin-dir ../em-aisoftwarefactory
+```
+
+## Quick Start
+
+### 1. Launch Claude Code
 
 ```bash
 claude --plugin-dir .claude/plugins/em-software-factory
 ```
 
-This loads all skills, hooks, MCP servers, and templates defined in the plugin. Skills are available as slash commands (e.g., `/create-pr`, `/code-review`).
+### 2. Configure Atlassian (Optional)
 
-## Setup
-
-### 1. Configure Atlassian Credentials (Optional)
-
-If you're using Jira/Confluence integration, set these environment variables:
+If using Jira/Confluence integration:
 
 ```bash
-# Jira Configuration
 export JIRA_URL=https://your-company.atlassian.net
 export JIRA_EMAIL=your-email@company.com
 export JIRA_API_TOKEN=your_api_token
-export JIRA_PROJECT_KEY=YOUR_PROJECT  # Your Jira project key
-
-# Confluence Configuration (same Atlassian token)
-export CONFLUENCE_URL=https://your-company.atlassian.net/wiki
-export CONFLUENCE_EMAIL=your-email@company.com
-export CONFLUENCE_API_TOKEN=your_api_token
+export JIRA_PROJECT_KEY=YOUR_PROJECT
 ```
 
-**Getting an Atlassian API Token:**
-1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-2. Click "Create API token"
-3. Give it a label (e.g., "Claude Code")
-4. Copy the token and set it as both `JIRA_API_TOKEN` and `CONFLUENCE_API_TOKEN`
+**Get API Token:** https://id.atlassian.com/manage-profile/security/api-tokens
 
-### 2. MCP Server
+### 3. Install UV (for MCP server)
 
-The Atlassian MCP server (`mcp-atlassian`) is configured in `.mcp.json`. It requires `uvx` (from the `uv` Python package manager).
-
-Install `uv` if not already installed:
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-The MCP server starts automatically when Claude Code launches. No additional setup needed.
+### 4. Verify Setup
 
-### 3. Verify Setup
+In Claude Code:
+```
+/mcp
+```
 
-In Claude Code, run `/mcp` to verify the `atlassian` server is connected and healthy.
-
-## Features & Components
-
-### SDLC Skills (16 Available)
+## Available Skills
 
 **Core Development:**
 - `/create-plan` - Generate implementation plans
@@ -104,208 +99,52 @@ In Claude Code, run `/mcp` to verify the `atlassian` server is connected and hea
 - `/validate-plan` - Validate implementation plans
 - `/code-review` - Comprehensive code review
 - `/describe-pr` - Generate PR descriptions
-- `/create-pr` - Create pull requests with automation
+- `/create-pr` - Create pull requests
 - `/commit` - Smart commit with automated checks
 
-**Research & Documentation:**
+**Research & Testing:**
 - `/research-codebase` - Analyze and document codebase
-
-**Testing:**
 - `/create-e2e-testplan` - Create end-to-end test plans
 - `/update-e2e-testplan` - Update existing test plans
 - `/dogfood` - Dogfooding workflow and reporting
 
-**Bug Tracking & Epic Management:**
+**Jira Integration:**
 - `/create-bug` - Create structured bug reports
 - `/create-bug-from-video` - Create bugs from video recordings
-- `/create-epic` - Create epic documentation (single or batch from table)
+- `/create-epic` - Create epic documentation
 
-**Database:**
+**Utilities:**
 - `/generate-migration` - Generate database migrations
-
-**PR Management:**
 - `/split-pr` - Split large PRs into manageable chunks
 
-### Development Hooks
+## Usage Example
 
-Pre and post-execution hooks for:
-- Linting changed files (`lint-changed.sh`)
-- Secret detection (`check-secrets.sh`)
-- Automated quality gates
-
-### Templates
-
-Standardized templates for:
-- PR descriptions (`templates/pr_description.md`)
-- Dogfood reports (`templates/dogfood-report-template.md`)
-
-### MCP Integration
-
-The plugin includes MCP (Model Context Protocol) configuration for:
-- Atlassian (Jira & Confluence) integration
-- Extended capabilities and custom tools
-
-## Project Structure
-
-```
-your-repo/
-├── .claude/
-│   ├── settings.local.json           ← Permissions (gitignored)
-│   ├── cache/                         ← Cached Jira tickets & Confluence pages
-│   │   ├── YOUR-PROJECT-XXX.md
-│   │   └── CONF-XXXXX.md
-│   ├── bugs/                          ← Bug reports created via /create-bug
-│   ├── reviews/                       ← Code reviews
-│   ├── prs/                           ← PR descriptions
-│   └── plugins/
-│       └── em-software-factory/       ← This plugin
-│           ├── .claude-plugin/plugin.json
-│           ├── .mcp.json              ← MCP server configuration
-│           ├── README.md
-│           ├── hooks/                 ← Security checks, linting
-│           ├── scripts/               ← Helper scripts
-│           ├── templates/             ← PR templates
-│           └── skills/                ← 16 SDLC skills
-├── specs/
-│   ├── features/                      ← Implementation plans
-│   ├── research/                      ← Research documents
-│   └── testing/e2e/                   ← E2E test plans
-├── dogfood-output/                    ← Dogfood testing reports (gitignored)
-│   ├── report.md
-│   ├── screenshots/
-│   └── videos/
-└── tests/e2e/                         ← Automated E2E tests
-```
-
-## How It Works
-
-All Jira and Confluence integration is handled via the **Atlassian MCP server** (`sooperset/mcp-atlassian`). When Claude needs ticket or page data, it calls MCP tools like `mcp__atlassian__jira_get_issue` or `mcp__atlassian__confluence_get_page` — no Python scripts or manual API calls needed.
-
-Results are cached to `.claude/cache/` for performance. Subsequent requests read from cache unless you delete the cached file.
-
-## Usage Examples
-
-### Creating an Implementation Plan
 ```bash
-# In Claude Code
+# Create an implementation plan
 /create-plan
 
-# Then describe your feature or reference a Jira ticket
-"Create a plan for PROJ-123"
-```
-
-### Code Review
-```bash
-# After making changes
+# Review your changes
 /code-review
 
-# Claude will review your diff and provide feedback
-```
-
-### Smart Commit
-```bash
-# Stage your changes
-git add .
-
-# Use the commit skill
+# Smart commit
 /commit
 
-# Claude will analyze changes and create an appropriate commit message
+# Research the codebase
+/research-codebase "How does authentication work?"
 ```
 
-### Research Codebase
-```bash
-/research-codebase
+## Documentation
 
-# Then ask your question
-"How does authentication work in this codebase?"
-```
+- [Engineering Operating System](docs/engineering-os.md) - Philosophy and workflows
+- [Project Structure](docs/project-structure.md) - Directory layout and organization
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+- [Updating the Plugin](docs/updating.md) - How to update and maintain
+- [Development Guide](docs/development.md) - Contributing to the plugin
 
-### Create Epic (Single)
-```bash
-# Interactive epic creation
-/create-epic "Build Your Own Workflow"
+## Support
 
-# Claude will guide you through each section collaboratively
-```
-
-### Create Epics (Batch from Table)
-```bash
-# From CSV file
-/create-epic --from-table roadmap-q2-2026.csv
-
-# From Excel spreadsheet
-/create-epic --from-table epic-planning.xlsx
-
-# Claude will preview all epics before creating them in Jira
-```
-
-## Troubleshooting
-
-### MCP server not connected
-- Run `/mcp` in Claude Code to check server status
-- Ensure `uv` is installed: `which uvx`
-- Check env vars are set: `echo $JIRA_URL $JIRA_EMAIL $JIRA_API_TOKEN`
-
-### "401 Unauthorized" from Jira/Confluence
-- Verify your API token is correct and hasn't expired
-- Check that the email matches your Atlassian account
-- Regenerate token at https://id.atlassian.com/manage-profile/security/api-tokens
-
-### "404 Not Found" when fetching ticket
-- Check that the ticket key is correct (e.g., `PROJ-123`)
-- Verify you have access to the ticket in Jira
-- Confirm `JIRA_URL` points to the correct Atlassian instance
-
-### Stale cached data
-- Delete the cached file: `rm .claude/cache/PROJ-XXX.md`
-- Re-invoke the skill to fetch fresh data
-
-### Plugin not loading
-- Ensure Claude Code v2.1.81 or later
-- Verify plugin directory structure is correct
-- Check `.claude-plugin/plugin.json` exists and is valid
-- Launch with `--plugin-dir` flag
-
-## Updating the Plugin
-
-### If installed as git submodule:
-```bash
-# Update to latest version
-git submodule update --remote .claude/plugins/em-software-factory
-
-# Commit the update
-git add .claude/plugins/em-software-factory
-git commit -m "Update EM Software Factory plugin"
-```
-
-### If cloned directly:
-```bash
-cd .claude/plugins/em-software-factory
-git pull origin main
-```
-
-## Development
-
-This repository serves as the source of truth for the EM Software Factory plugin. Changes made here can be propagated to other repositories using the submodule update mechanism.
-
-### Benefits of Submodule Approach:
-- ✅ Single source of truth for SDLC skills
-- ✅ Share improvements across all projects
-- ✅ Version control for plugin updates
-- ✅ Easy rollback if issues
-- ✅ Consistent SDLC workflows across all company repositories
+- Issues: https://github.com/EmergenceAI/EM-AISoftwareFactory/issues
 
 ## License
 
 [Add your license here]
-
-## Contributing
-
-[Add contribution guidelines here]
-
-## Support
-
-For issues, feature requests, or questions:
-- Create an issue: https://github.com/EmergenceAI/EM-AISoftwareFactory/issues
-- Internal: Contact the AI/DevOps team
