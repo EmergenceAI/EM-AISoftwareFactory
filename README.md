@@ -12,7 +12,7 @@ Transform Jira issues into tested, reviewed PRs across multiple repositories wit
 
 ```bash
 # Navigate to your repository
-cd ~/Documents/Development/em-semi
+cd /path/to/your/repo
 
 # Implement a Jira issue
 /autonomous-implement SEMI-1413
@@ -24,7 +24,7 @@ cd ~/Documents/Development/em-semi
 
 ```bash
 # From workspace root
-cd ~/Documents/Development/EM-AISoftwareFactory
+cd /path/to/em-aisoftwarefactory
 
 # Auto-routes to correct repository and injects knowledge
 python3 -m orchestrator implement SEMI-1413
@@ -84,10 +84,10 @@ The orchestrator provides **workspace-level automation** with repository routing
 
 ```bash
 # 1. Navigate to repository
-cd ~/Documents/Development/em-semi
+cd /path/to/your/repo
 
 # 2. Start Claude Code with plugin
-claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins/em-software-factory
+claude --plugin-dir .claude/plugins/em-software-factory
 
 # 3. Run autonomous-implement
 /autonomous-implement SEMI-1413
@@ -128,14 +128,14 @@ python3 -m orchestrator implement SEMI-1413
 
 # Output:
 # ✅ Knowledge context prepared: /tmp/knowledge_context_xyz.md
-# ✅ Repository: /Users/username/Documents/Development/em-semi
+# ✅ Repository: /path/to/your/repo
 # 
 # To execute, run:
-#   cd ~/Documents/Development/EM-AISoftwareFactory
+#   cd /path/to/em-aisoftwarefactory
 #   claude --plugin-dir .claude/plugins/em-software-factory
 # 
 # Then:
-#   cd ~/Documents/Development/em-semi
+#   cd /path/to/your/repo
 #   /autonomous-implement SEMI-1413 --context-file /tmp/knowledge_context_xyz.md
 
 # Step 3: Follow the instructions
@@ -369,24 +369,34 @@ python3 -m orchestrator test YOUR-ISSUE-123
 
 ## Installation
 
-### Option 1: Plugin Mode (Current Usage)
+### Option 1: Install from Private Marketplace (Recommended)
 
 ```bash
-# Start Claude Code with plugin
-claude --plugin-dir .claude/plugins/em-software-factory
-
-# Skills available immediately
-/autonomous-implement SEMI-1413
+# In Claude Code
+/plugin install em-software-factory@em-plugins
 ```
 
-### Option 2: Standalone Orchestrator
+Skills are available immediately across all projects.
+
+### Option 2: Install as Git Submodule
 
 ```bash
-# No Claude Code needed for routing
-python3 -m orchestrator test SEMI-1413
-python3 -m orchestrator implement SEMI-1413
+# Navigate to your repository
+cd /path/to/your/repo
 
-# Then copy/paste commands into Claude Code
+# Add as submodule
+git submodule add https://github.com/EmergenceAI/EM-AISoftwareFactory.git .claude/plugins/em-software-factory
+git submodule update --init --recursive
+
+# Start Claude Code with plugin
+claude --plugin-dir .claude/plugins/em-software-factory
+```
+
+### Option 3: Use Relative Path (Development)
+
+```bash
+# If both repos are in same parent directory
+claude --plugin-dir ../em-aisoftwarefactory
 ```
 
 ---
@@ -420,7 +430,7 @@ export JIRA_API_TOKEN=your_api_token
 
 ```bash
 # Quick (no orchestrator)
-cd em-semi && /autonomous-implement SEMI-1413
+cd /path/to/your/repo && /autonomous-implement SEMI-1413
 
 # Full (with knowledge)
 python3 -m orchestrator implement SEMI-1413
@@ -458,7 +468,7 @@ python3 -m orchestrator implement SEMI-1413
 cat workspace.yaml | grep -A 5 "repositories:"
 
 # Verify path exists
-ls -la ~/Documents/Development/em-semi
+ls -la /path/to/your/repo
 ```
 
 ### "No knowledge found"
