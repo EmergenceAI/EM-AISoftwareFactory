@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../em-talk2data"
+		},
+		{
+			"path": "../em-runtime"
+		},
+		{
+			"path": "../em-runtime-ui"
+		},
+		{
+			"path": "../em-sdlc-metrics"
+		}
+	]
+}

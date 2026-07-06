@@ -1,311 +1,506 @@
-# EM AI Software Factory
+# AI Software Factory
 
-A comprehensive Claude Code plugin powered by AI agents for automating and enhancing the Software Development Lifecycle (SDLC).
+**Autonomous Engineering Operating System** for multi-repository software delivery.
 
-## Overview
+Transform Jira issues into tested, reviewed PRs across multiple repositories with **one command**.
 
-EM AI Software Factory is a collection of intelligent agents and tooling designed to streamline software development processes. This platform provides automated workflows, quality checks, and development assistance across the entire SDLC with Jira and Confluence integration via MCP.
+---
 
-## Requirements
+## Quick Start
 
-- **Claude Code v2.1.81 or later** — required for plugin support. Install or update via: https://docs.anthropic.com/en/docs/claude-code/getting-started
+### Single Repository
+
+```bash
+# Navigate to your repository
+cd ~/Documents/Development/em-semi
+
+# Implement a Jira issue
+/autonomous-implement SEMI-1413
+
+# That's it! Creates plan → implements → tests → PR → updates Jira
+```
+
+### Multi-Repository with Orchestrator
+
+```bash
+# From workspace root
+cd ~/Documents/Development/EM-AISoftwareFactory
+
+# Auto-routes to correct repository and injects knowledge
+python3 -m orchestrator implement SEMI-1413
+
+# Follow the printed instructions in Claude Code
+```
+
+---
+
+## What Is This?
+
+An **Engineering OS** that provides:
+
+✅ **Single-Command SDLC** - From Jira → tested PR in 10 minutes  
+✅ **Multi-Repo Orchestration** - Auto-routes issues to 5 repositories  
+✅ **Knowledge-Driven** - Applies repo-specific patterns automatically  
+✅ **Quality Enforced** - 80% coverage, air-gapped, foundations standards  
+✅ **80% Autonomous** - Strategic checkpoints only (plan, PR)
+
+---
+
+## Documentation
+
+### 📘 Core Guides
+
+| Guide | Description | Time |
+|-------|-------------|------|
+| **[Quickstart](docs/guides/QUICKSTART.md)** | Get started | 5 min |
+| **[Orchestrator Usage](#orchestrator-usage)** | Single & multi-repo | 10 min |
+| **[Skills Reference](#skills-reference)** | All available skills | Reference |
+| **[Knowledge System](#knowledge-system)** | Architecture, ADRs, patterns | Reference |
+
+### 🏗️ Architecture
+
+| Doc | Purpose |
+|-----|---------|
+| **[System Architecture](docs/architecture/ENGINEERING_OS_ARCHITECTURE.md)** | Complete design |
+| **[Foundations Standards](docs/architecture/FOUNDATIONS_KNOWLEDGE_COMPLETE.md)** | Air-gapped, DoD |
+
+### ⚙️ Setup
+
+| Guide | When to Use |
+|-------|-------------|
+| **[Knowledge Setup](docs/setup/KNOWLEDGE_SETUP_COMPLETE.md)** | Extract repo knowledge |
+| **[Silent Mode](docs/setup/SILENT_MODE_COMPLETE.md)** | Configure automation |
+| **[Orchestrator Setup](docs/setup/ORCHESTRATOR_IMPLEMENTATION_COMPLETE.md)** | Multi-repo config |
+
+---
+
+## Orchestrator Usage
+
+The orchestrator provides **workspace-level automation** with repository routing and knowledge injection.
+
+### Single Repository
+
+**Direct skill invocation (no orchestrator):**
+
+```bash
+# 1. Navigate to repository
+cd ~/Documents/Development/em-semi
+
+# 2. Start Claude Code with plugin
+claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins/em-software-factory
+
+# 3. Run autonomous-implement
+/autonomous-implement SEMI-1413
+```
+
+**What happens:**
+- ✅ Fetches SEMI-1413 from Jira
+- ✅ Creates branch from main
+- ✅ Researches em-semi codebase
+- ✅ Creates implementation plan
+- ✅ Generates tests from acceptance criteria
+- ✅ Implements solution
+- ✅ Validates with tests
+- ✅ Creates PR
+- ✅ Updates Jira
+
+**Limitations:**
+- ❌ No repository-specific knowledge injection
+- ❌ No Foundations standards enforcement
+- ❌ Manual repository selection
+
+---
+
+### Multi-Repository with Orchestrator
+
+**Orchestrator-based (recommended for production):**
+
+```bash
+# Step 1: Test routing
+python3 -m orchestrator test SEMI-1413
+
+# Output:
+# ✅ Routed SEMI-1413 → semi
+# ✅ Loaded knowledge: 45KB architecture, patterns, conventions
+
+# Step 2: Generate implementation instructions
+python3 -m orchestrator implement SEMI-1413
+
+# Output:
+# ✅ Knowledge context prepared: /tmp/knowledge_context_xyz.md
+# ✅ Repository: /Users/username/Documents/Development/em-semi
+# 
+# To execute, run:
+#   cd ~/Documents/Development/EM-AISoftwareFactory
+#   claude --plugin-dir .claude/plugins/em-software-factory
+# 
+# Then:
+#   cd ~/Documents/Development/em-semi
+#   /autonomous-implement SEMI-1413 --context-file /tmp/knowledge_context_xyz.md
+
+# Step 3: Follow the instructions
+# (Opens Claude Code and runs the skill with knowledge context)
+```
+
+**What the orchestrator adds:**
+- ✅ **Auto-routing**: SEMI-1413 → em-semi (via Jira component)
+- ✅ **Knowledge injection**: 45KB of em-semi architecture/patterns
+- ✅ **Foundations enforcement**: Air-gapped, 80% coverage, DoD
+- ✅ **Standards compliance**: Automatic validation
+
+**Routing logic:**
+```yaml
+# workspace.yaml
+jira:
+  component_mapping:
+    Semi: semi                 # SEMI-* issues → em-semi
+    Runtime: runtime           # RT-* issues → em-runtime
+    UI: runtime-ui             # UI-* issues → em-runtime-ui
+    Talk2Data: talk2data       # T2D-* issues → em-talk2data
+    "Data Readiness": data-readiness
+```
+
+---
+
+### Batch Multi-Repository
+
+```bash
+# Implement multiple issues across repositories
+python3 -m orchestrator multi-repo SEMI-1413 T2D-890 RT-567
+
+# Output:
+# ✅ SEMI-1413 → em-semi
+# ✅ T2D-890 → em-talk2data
+# ✅ RT-567 → em-runtime
+# 
+# Generated 3 instruction sets (see /tmp/orchestrator_instructions_*.sh)
+```
+
+---
+
+## Skills Reference
+
+### Autonomous Skills (End-to-End)
+
+| Skill | Description | Autonomy | Time |
+|-------|-------------|----------|------|
+| **`/autonomous-implement`** | Full SDLC: Jira → PR | 80% (2 checkpoints) | 10 min |
+| **`/autonomous-sprint`** | Full sprint automation | 80% (3 checkpoints) | 25 min |
+| **`/batch-implement`** | Parallel batch processing | 80% (2 checkpoints) | 15 min |
+
+### Core Development Skills
+
+| Skill | Description | Autonomy |
+|-------|-------------|----------|
+| **`/create-plan`** | Generate implementation plan from Jira | 100% |
+| **`/implement-plan`** | Execute phased implementation | 95% (1 checkpoint) |
+| **`/eval-generator`** | Generate tests from acceptance criteria | 100% |
+| **`/create-pr`** | Create pull request | 95% (1 checkpoint) |
+| **`/code-review`** | Automated code review | 95% (1 checkpoint) |
+| **`/commit`** | Smart commit organization | 100% |
+
+### Research & Planning
+
+| Skill | Description |
+|-------|-------------|
+| **`/research-codebase`** | Semantic code search |
+| **`/jira-to-branches`** | Batch branch creation from JQL |
+| **`/jira-update`** | Update Jira issue status |
+
+**See [docs/guides/QUICKSTART.md](docs/guides/QUICKSTART.md) for detailed skill usage.**
+
+---
+
+## Knowledge System
+
+The knowledge system extracts and applies repository-specific context automatically.
+
+### What Gets Extracted
+
+```
+knowledge/
+├── repositories/
+│   ├── semi/
+│   │   ├── architecture.md      ← 45KB of em-semi architecture
+│   │   ├── patterns.md          ← Coding patterns (context managers, etc.)
+│   │   ├── conventions.md       ← Style guide (imports, type hints)
+│   │   └── dependencies.md      ← Package management approach
+│   ├── talk2data/
+│   │   └── ...                  ← 2MB of talk2data knowledge
+│   └── runtime/
+│       └── ...                  ← Runtime knowledge
+└── foundations/
+    ├── standards.md             ← Air-gapped requirements, DoD
+    └── overview.md              ← Engineering principles
+```
+
+### Automatic Sync
+
+```bash
+# Runs automatically before orchestrator
+./sync_knowledge.sh
+
+# Or manually
+./sync_knowledge.sh
+
+# Only re-extracts if repository changed (git diff check)
+```
+
+### Pointing to Specific Knowledge
+
+#### In Code
+
+Knowledge is automatically injected via `--context-file`:
+
+```bash
+/autonomous-implement SEMI-1413 --context-file /tmp/knowledge_context.md
+```
+
+The context file contains:
+```markdown
+# Repository Knowledge Context
+
+## Architecture
+[Complete em-semi architecture patterns]
+
+## Coding Patterns
+[Context managers, async/await, type hints]
+
+## Conventions
+[Import style, naming, docstrings]
+
+## Foundations Standards
+### Air-Gapped Requirements (CRITICAL)
+- ❌ NO cloud APIs (AWS, GCP, Azure)
+...
+```
+
+#### Referencing ADRs
+
+**Option 1: Add to knowledge extraction**
+
+```bash
+# Edit knowledge/repositories/semi/architecture.md
+# Add section:
+
+## Architecture Decision Records
+
+### ADR-001: Event Sourcing for Workflow State
+- Decision: Use event sourcing for all workflow state changes
+- Rationale: Enables time-travel debugging and audit trails
+- File: docs/adr/001-event-sourcing.md
+
+### ADR-002: DuckDB for Analytics
+- Decision: Embed DuckDB for local analytics queries
+- Rationale: Air-gapped requirement, zero-dependency
+- File: docs/adr/002-duckdb.md
+```
+
+**Option 2: Link in workspace.yaml**
+
+```yaml
+# workspace.yaml
+repositories:
+  - name: semi
+    path: em-semi
+    knowledge:
+      adrs:
+        - path: docs/adr/001-event-sourcing.md
+          title: Event Sourcing for Workflow State
+        - path: docs/adr/002-duckdb.md
+          title: DuckDB for Analytics
+```
+
+**Option 3: Direct reference in prompts**
+
+```bash
+/autonomous-implement SEMI-1413
+
+# Then mention in plan approval:
+"Ensure this follows ADR-002 (DuckDB for analytics)"
+```
+
+---
+
+## Workspace Configuration
+
+### Repository Mapping
+
+```yaml
+# workspace.yaml
+workspace:
+  root: /Users/username/Documents/Development
+
+repositories:
+  - name: semi
+    path: em-semi
+    jira_component: Semi
+    github: EmergenceAI/em-semi
+    
+  - name: talk2data
+    path: em-talk2data
+    jira_component: Talk2Data
+    github: EmergenceAI/em-talk2data
+
+jira:
+  component_mapping:
+    Semi: semi                    # Routes SEMI-* → em-semi
+    Talk2Data: talk2data          # Routes T2D-* → em-talk2data
+    Runtime: runtime
+    UI: runtime-ui
+    "Data Readiness": data-readiness
+```
+
+### Adding a New Repository
+
+```bash
+# 1. Add to workspace.yaml
+# 2. Extract knowledge
+./sync_knowledge.sh
+
+# 3. Test routing
+python3 -m orchestrator test YOUR-ISSUE-123
+
+# 4. Verify knowledge loaded
+# Should show: "Loaded knowledge for your-repo: XXX chars"
+```
+
+---
 
 ## Installation
 
-### Option 1: Install as Git Submodule (Recommended)
-
-This plugin can be installed in any repository as a git submodule:
+### Option 1: Plugin Mode (Current Usage)
 
 ```bash
-# Navigate to your target repository
-cd /path/to/your/repo
-
-# Add as submodule
-git submodule add https://github.com/EmergenceAI/EM-AISoftwareFactory.git .claude/plugins/em-software-factory
-
-# Initialize and update
-git submodule update --init --recursive
-
-# Commit the submodule
-git add .gitmodules .claude/plugins/em-software-factory
-git commit -m "Add EM Software Factory plugin"
-```
-
-### Option 2: Clone Directly
-
-```bash
-# Navigate to your project's .claude directory
-cd /path/to/your/repo/.claude
-
-# Create plugins directory if needed
-mkdir -p plugins
-
-# Clone the plugin
-git clone https://github.com/EmergenceAI/EM-AISoftwareFactory.git plugins/em-software-factory
-```
-
-## Launching Claude Code
-
-To use the em-software-factory plugin, launch Claude Code with the `--plugin-dir` flag:
-
-```bash
+# Start Claude Code with plugin
 claude --plugin-dir .claude/plugins/em-software-factory
+
+# Skills available immediately
+/autonomous-implement SEMI-1413
 ```
 
-This loads all skills, hooks, MCP servers, and templates defined in the plugin. Skills are available as slash commands (e.g., `/create-pr`, `/code-review`).
-
-## Setup
-
-### 1. Configure Atlassian Credentials (Optional)
-
-If you're using Jira/Confluence integration, set these environment variables:
+### Option 2: Standalone Orchestrator
 
 ```bash
-# Jira Configuration
+# No Claude Code needed for routing
+python3 -m orchestrator test SEMI-1413
+python3 -m orchestrator implement SEMI-1413
+
+# Then copy/paste commands into Claude Code
+```
+
+---
+
+## Requirements
+
+- **Claude Code** v2.1.81+ (for skills)
+- **Python 3.8+** (for orchestrator)
+- **Git** (for repositories)
+- **Jira MCP** (optional, for real Jira data)
+
+### Jira MCP Setup (Optional)
+
+```bash
+# Set environment variables
 export JIRA_URL=https://your-company.atlassian.net
 export JIRA_EMAIL=your-email@company.com
 export JIRA_API_TOKEN=your_api_token
-export JIRA_PROJECT_KEY=YOUR_PROJECT  # Your Jira project key
 
-# Confluence Configuration (same Atlassian token)
-export CONFLUENCE_URL=https://your-company.atlassian.net/wiki
-export CONFLUENCE_EMAIL=your-email@company.com
-export CONFLUENCE_API_TOKEN=your_api_token
+# Test connection
+/mcp
 ```
 
-**Getting an Atlassian API Token:**
-1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-2. Click "Create API token"
-3. Give it a label (e.g., "Claude Code")
-4. Copy the token and set it as both `JIRA_API_TOKEN` and `CONFLUENCE_API_TOKEN`
+**Without Jira MCP:** Uses mock data (still works for testing)
 
-### 2. MCP Server
+---
 
-The Atlassian MCP server (`mcp-atlassian`) is configured in `.mcp.json`. It requires `uvx` (from the `uv` Python package manager).
+## Common Workflows
 
-Install `uv` if not already installed:
+### Implement Single Issue
+
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Quick (no orchestrator)
+cd em-semi && /autonomous-implement SEMI-1413
+
+# Full (with knowledge)
+python3 -m orchestrator implement SEMI-1413
+# Follow instructions
 ```
 
-The MCP server starts automatically when Claude Code launches. No additional setup needed.
+### Implement Sprint
 
-### 3. Verify Setup
-
-In Claude Code, run `/mcp` to verify the `atlassian` server is connected and healthy.
-
-## Features & Components
-
-### SDLC Skills (16 Available)
-
-**Core Development:**
-- `/create-plan` - Generate implementation plans
-- `/implement-plan` - Execute implementation plans
-- `/validate-plan` - Validate implementation plans
-- `/code-review` - Comprehensive code review
-- `/describe-pr` - Generate PR descriptions
-- `/create-pr` - Create pull requests with automation
-- `/commit` - Smart commit with automated checks
-
-**Research & Documentation:**
-- `/research-codebase` - Analyze and document codebase
-
-**Testing:**
-- `/create-e2e-testplan` - Create end-to-end test plans
-- `/update-e2e-testplan` - Update existing test plans
-- `/dogfood` - Dogfooding workflow and reporting
-
-**Bug Tracking & Epic Management:**
-- `/create-bug` - Create structured bug reports
-- `/create-bug-from-video` - Create bugs from video recordings
-- `/create-epic` - Create epic documentation (single or batch from table)
-
-**Database:**
-- `/generate-migration` - Generate database migrations
-
-**PR Management:**
-- `/split-pr` - Split large PRs into manageable chunks
-
-### Development Hooks
-
-Pre and post-execution hooks for:
-- Linting changed files (`lint-changed.sh`)
-- Secret detection (`check-secrets.sh`)
-- Automated quality gates
-
-### Templates
-
-Standardized templates for:
-- PR descriptions (`templates/pr_description.md`)
-- Dogfood reports (`templates/dogfood-report-template.md`)
-
-### MCP Integration
-
-The plugin includes MCP (Model Context Protocol) configuration for:
-- Atlassian (Jira & Confluence) integration
-- Extended capabilities and custom tools
-
-## Project Structure
-
-```
-your-repo/
-├── .claude/
-│   ├── settings.local.json           ← Permissions (gitignored)
-│   ├── cache/                         ← Cached Jira tickets & Confluence pages
-│   │   ├── YOUR-PROJECT-XXX.md
-│   │   └── CONF-XXXXX.md
-│   ├── bugs/                          ← Bug reports created via /create-bug
-│   ├── reviews/                       ← Code reviews
-│   ├── prs/                           ← PR descriptions
-│   └── plugins/
-│       └── em-software-factory/       ← This plugin
-│           ├── .claude-plugin/plugin.json
-│           ├── .mcp.json              ← MCP server configuration
-│           ├── README.md
-│           ├── hooks/                 ← Security checks, linting
-│           ├── scripts/               ← Helper scripts
-│           ├── templates/             ← PR templates
-│           └── skills/                ← 16 SDLC skills
-├── specs/
-│   ├── features/                      ← Implementation plans
-│   ├── research/                      ← Research documents
-│   └── testing/e2e/                   ← E2E test plans
-├── dogfood-output/                    ← Dogfood testing reports (gitignored)
-│   ├── report.md
-│   ├── screenshots/
-│   └── videos/
-└── tests/e2e/                         ← Automated E2E tests
-```
-
-## How It Works
-
-All Jira and Confluence integration is handled via the **Atlassian MCP server** (`sooperset/mcp-atlassian`). When Claude needs ticket or page data, it calls MCP tools like `mcp__atlassian__jira_get_issue` or `mcp__atlassian__confluence_get_page` — no Python scripts or manual API calls needed.
-
-Results are cached to `.claude/cache/` for performance. Subsequent requests read from cache unless you delete the cached file.
-
-## Usage Examples
-
-### Creating an Implementation Plan
 ```bash
-# In Claude Code
-/create-plan
+# All issues in sprint
+/autonomous-sprint --jql "sprint in openSprints()"
 
-# Then describe your feature or reference a Jira ticket
-"Create a plan for PROJ-123"
+# Specific filter
+/autonomous-sprint --jql "filter = 17150"
 ```
 
-### Code Review
+### Research First
+
 ```bash
-# After making changes
-/code-review
+# Understand codebase before implementing
+/research-codebase "How does wafer processing work?"
 
-# Claude will review your diff and provide feedback
+# Then implement
+/autonomous-implement SEMI-1413
 ```
 
-### Smart Commit
-```bash
-# Stage your changes
-git add .
-
-# Use the commit skill
-/commit
-
-# Claude will analyze changes and create an appropriate commit message
-```
-
-### Research Codebase
-```bash
-/research-codebase
-
-# Then ask your question
-"How does authentication work in this codebase?"
-```
-
-### Create Epic (Single)
-```bash
-# Interactive epic creation
-/create-epic "Build Your Own Workflow"
-
-# Claude will guide you through each section collaboratively
-```
-
-### Create Epics (Batch from Table)
-```bash
-# From CSV file
-/create-epic --from-table roadmap-q2-2026.csv
-
-# From Excel spreadsheet
-/create-epic --from-table epic-planning.xlsx
-
-# Claude will preview all epics before creating them in Jira
-```
+---
 
 ## Troubleshooting
 
-### MCP server not connected
-- Run `/mcp` in Claude Code to check server status
-- Ensure `uv` is installed: `which uvx`
-- Check env vars are set: `echo $JIRA_URL $JIRA_EMAIL $JIRA_API_TOKEN`
+### "Can't find repository"
 
-### "401 Unauthorized" from Jira/Confluence
-- Verify your API token is correct and hasn't expired
-- Check that the email matches your Atlassian account
-- Regenerate token at https://id.atlassian.com/manage-profile/security/api-tokens
-
-### "404 Not Found" when fetching ticket
-- Check that the ticket key is correct (e.g., `PROJ-123`)
-- Verify you have access to the ticket in Jira
-- Confirm `JIRA_URL` points to the correct Atlassian instance
-
-### Stale cached data
-- Delete the cached file: `rm .claude/cache/PROJ-XXX.md`
-- Re-invoke the skill to fetch fresh data
-
-### Plugin not loading
-- Ensure Claude Code v2.1.81 or later
-- Verify plugin directory structure is correct
-- Check `.claude-plugin/plugin.json` exists and is valid
-- Launch with `--plugin-dir` flag
-
-## Updating the Plugin
-
-### If installed as git submodule:
 ```bash
-# Update to latest version
-git submodule update --remote .claude/plugins/em-software-factory
+# Check workspace.yaml
+cat workspace.yaml | grep -A 5 "repositories:"
 
-# Commit the update
-git add .claude/plugins/em-software-factory
-git commit -m "Update EM Software Factory plugin"
+# Verify path exists
+ls -la ~/Documents/Development/em-semi
 ```
 
-### If cloned directly:
+### "No knowledge found"
+
 ```bash
-cd .claude/plugins/em-software-factory
-git pull origin main
+# Sync knowledge
+./sync_knowledge.sh
+
+# Check extracted
+ls -la knowledge/repositories/semi/
 ```
 
-## Development
+### "Routing to wrong repository"
 
-This repository serves as the source of truth for the EM Software Factory plugin. Changes made here can be propagated to other repositories using the submodule update mechanism.
+```bash
+# Test routing
+python3 -m orchestrator test SEMI-1413
 
-### Benefits of Submodule Approach:
-- ✅ Single source of truth for SDLC skills
-- ✅ Share improvements across all projects
-- ✅ Version control for plugin updates
-- ✅ Easy rollback if issues
-- ✅ Consistent SDLC workflows across all company repositories
+# Check Jira component mapping
+cat workspace.yaml | grep -A 10 "component_mapping:"
+```
 
-## License
+### "Branch created from wrong base"
 
-[Add your license here]
+Fixed in latest version! All branches now created from main automatically.
 
-## Contributing
+See [CRITICAL_FIX_BRANCHING.md](CRITICAL_FIX_BRANCHING.md) for details.
 
-[Add contribution guidelines here]
+---
+
+## Next Steps
+
+1. **[5 min]** Read [Quickstart Guide](docs/guides/QUICKSTART.md)
+2. **[10 min]** Try `/autonomous-implement` on a real issue
+3. **[15 min]** Set up orchestrator for your workspace
+4. **[Optional]** Configure Jira MCP for real data
+
+---
 
 ## Support
 
-For issues, feature requests, or questions:
-- Create an issue: https://github.com/EmergenceAI/EM-AISoftwareFactory/issues
-- Internal: Contact the AI/DevOps team
+- **Documentation:** [docs/README.md](docs/README.md)
+- **Issues:** GitHub Issues
+- **Internal:** #ai-software-factory Slack
+

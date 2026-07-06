@@ -1,0 +1,106 @@
+Title,Vision,Overview,Current State,Desired State,Impact,Success Criteria,User Value,Business Impact,Strategic Alignment,Project,Priority,Labels
+"PDF Connectivity","Enable enterprise teams to programmatically discover, ingest, and register PDF repositories containing 1,000+ documents and files up to 100MB.","Build PDF connectivity capabilities that enable the platform to discover PDF repositories, ingest large documents (up to 100MB), and register them in the data catalog. This connector will handle document parsing, metadata extraction, and integration with the Runtime Platform to enable downstream retrieval and grounding workflows.","The platform currently lacks native PDF connectivity. PDF documents are a critical source of enterprise knowledge but cannot be systematically discovered, ingested, or registered for AI-powered retrieval and analysis.","- PDF repository discovery and connection
+- Support for 1,000+ PDF documents per repository
+- Support for PDF files up to 100MB
+- Automated metadata extraction (title, author, creation date, page count)
+- Integration with Runtime Platform
+- Document registration in data catalog
+- Foundation for retrieval and grounding workflows","Customer Impact: Enables enterprise teams to unlock knowledge trapped in PDF documents by making them discoverable and queryable through AI-powered workflows.
+
+Business Impact: Foundation for retrieval and grounding capabilities. Unlocks PDF-heavy use cases in legal, compliance, engineering, and documentation domains.
+
+Strategic Impact: Critical foundation workstream for M2 milestone. Enables unstructured document support across the platform.","Functional Criteria:
+- PDF connector can discover and connect to repositories containing 1,000+ documents
+- Successfully ingest PDF files up to 100MB
+- Extract and register metadata for all ingested PDFs
+- Integration with Runtime Platform operational
+
+Performance Criteria:
+- Ingest 1,000 PDFs in < 30 minutes
+- Handle 100MB PDFs without failure
+- < 5% failure rate on document parsing
+
+Eval-Based Validation:
+- Successfully discover and ingest test repository with 1,000+ PDFs
+- Verify metadata accuracy for 100 sample PDFs (100% match)
+- End-to-end test: connect → ingest → register → retrieve
+
+Observability:
+- Track ingestion metrics (documents/sec, failure rate, avg file size)
+- Alert on ingestion failures
+- Dashboard showing repository connection status","Enterprise teams can connect their PDF document repositories to the platform and make them available for AI-powered search, retrieval, and analysis workflows without manual processing.","- Unlocks PDF-heavy use cases (legal, compliance, documentation)
+- Reduces manual document processing by 90%
+- Foundation for retrieval and grounding features
+- Required for M2 milestone delivery","Foundation workstream for unstructured data support. Enables retrieval and grounding capabilities that differentiate the platform from structured-data-only solutions. Critical path for M2.",ABI,High,"data-connectivity,pdf,foundation,M2"
+"Semantic Layer & Business Glossary","Generate comprehensive semantic layer with entities, metrics, relationships, and business glossary supporting 1,000+ tables/documents with cross-source entity mapping.","Build a unified semantic layer that generates entities, metrics, relationships, semantic mappings, and business glossary from ingested data sources. The system will analyze CSV, Parquet, PDF, and Text sources to create a knowledge graph of business concepts, enabling semantic search, intelligent query generation, and cross-source analytics. This is the highest dependency workstream in the MVP.","Current platform lacks a unified semantic understanding of data across sources. Tables, documents, and datasets exist in silos without shared business context, entity relationships, or semantic mappings. This prevents intelligent cross-source queries and semantic search.","- Automated entity extraction from CSV, Parquet, PDF, and Text sources
+- Metric generation and relationship mapping
+- Semantic mappings across heterogeneous sources
+- Business glossary with definitions and lineage
+- Support for 1,000+ tables/documents
+- Cross-source entity resolution and mapping
+- Integration with downstream AI services (Text2SQL, Semantic Search)","Customer Impact: Enables business users to query data using natural language and business terms without knowing underlying schemas or data locations.
+
+Business Impact: Highest dependency workstream in MVP. Enables semantic search, intelligent SQL generation, and cross-source analytics. Critical path for M2.
+
+Strategic Impact: Core differentiator. Enables the platform to understand business context and semantics rather than just raw schemas. Foundation for conversational analytics.","Functional Criteria:
+- Extract entities and metrics from 1,000+ tables/documents
+- Generate business glossary with definitions and lineage
+- Map entities across CSV, Parquet, PDF, and Text sources
+- Provide semantic mappings for downstream AI services
+
+Performance Criteria:
+- Process 1,000 tables in < 2 hours
+- Entity extraction accuracy ≥ 90%
+- Cross-source entity mapping precision ≥ 85%
+
+Eval-Based Validation:
+- Eval 1: Entity Extraction — Extract entities from 100 test tables with ≥ 90% recall
+- Eval 2: Cross-Source Mapping — Map 50 test entities across sources with ≥ 85% precision
+- Eval 3: Business Glossary — Generate glossary entries for 100 entities with ≥ 80% definition quality
+- Eval 4: Downstream Integration — Validate Text2SQL and Semantic Search use generated semantic layer
+
+Observability:
+- Track entity extraction rate and accuracy
+- Monitor cross-source mapping quality
+- Dashboard for semantic layer coverage and health","Business users can query data using natural language and business terms. Data teams get automated entity resolution and semantic mappings across all data sources.","- Eliminates manual semantic modeling work (saves 200+ hours per project)
+- Enables cross-source analytics without manual integration
+- Foundation for Text2SQL, Semantic Search, and conversational AI
+- Required for M2 milestone
+- Unblocks 5+ downstream workstreams","Critical path workstream with highest dependencies. Enables semantic understanding across the entire platform. Core differentiator that positions the platform as semantically-aware rather than schema-only. Essential for conversational analytics vision.",ABI,Critical,"data-readiness,semantic-layer,critical-path,M2"
+"Platform Talk2Data Service","Provide orchestration and reasoning service through LiteLLM that manages context, routing, retrieval, workflow execution, and agent interactions for conversational analytics.","Build the core Platform Talk2Data Service that orchestrates conversational analytics workflows. The service will use LiteLLM for model routing, manage conversation context and memory, coordinate retrieval from semantic layer and documents, route to Text2SQL or Semantic Search, and execute workflows and agents. This service validates Broadcom and Infineon workflows through a unified conversational interface.","Current EM-Semi capabilities are siloed and workflow-specific. There is no unified conversational service that can route between Text2SQL, Semantic Search, Workflow Execution, and Agent Invocation based on user intent.","- LiteLLM-based orchestration service
+- Multi-turn conversation management with context and memory
+- Intent classification and routing (Text2SQL, Semantic Search, Workflow, Agent)
+- Retrieval coordination with semantic layer and document stores
+- Workflow and agent execution orchestration
+- Integration with Broadcom and Infineon workflows
+- Guardrails and policy enforcement integration","Customer Impact: Enables business users to interact with data, workflows, and agents through a single conversational interface without switching tools or contexts.
+
+Business Impact: Core AI platform capability that validates Broadcom and Infineon customer workflows. Foundation for M3 customer delivery.
+
+Strategic Impact: Central orchestration service for all conversational AI capabilities. Validates platform unification vision.","Functional Criteria:
+- LiteLLM orchestration operational with multi-model routing
+- Multi-turn conversation with context management
+- Intent routing to Text2SQL, Semantic Search, Workflow, or Agent
+- Retrieval coordination with semantic layer
+- Execute Broadcom and Infineon workflows successfully
+- Guardrails and policy enforcement active
+
+Performance Criteria:
+- Intent classification accuracy ≥ 90%
+- Response latency < 3 seconds for SQL queries
+- Response latency < 5 seconds for retrieval queries
+- Support 100 concurrent conversations
+
+Eval-Based Validation:
+- Eval 1: Intent Classification — 95% accuracy on test intents across Text2SQL, Search, Workflow, Agent
+- Eval 2: Multi-Turn Context — Maintain context across 10-turn conversations with ≥ 90% accuracy
+- Eval 3: Broadcom Workflow — Execute Broadcom test scenarios end-to-end (0 failures)
+- Eval 4: Infineon Workflow — Execute Infineon test scenarios end-to-end (0 failures)
+
+Observability:
+- Track intent classification distribution and accuracy
+- Monitor routing decisions and latency by service type
+- Conversation success rate and user satisfaction metrics","Business users get a single conversational interface for analytics, search, workflow execution, and agent interactions. No context switching between tools.","- Validates Broadcom and Infineon customer workflows
+- Reduces user training time by 80% through unified interface
+- Foundation for M3 customer delivery
+- Enables cross-functional workflows (analytics + search + agents)","Core platform service that unifies all conversational AI capabilities. Validates the platform vision with real customer workflows. Critical for M3 customer acceptance.",ABI,Critical,"trusted-ai,talk2data,platform-core,M3"

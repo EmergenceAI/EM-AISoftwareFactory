@@ -1,0 +1,161 @@
+{
+  "_comment": "TEMPLATE: Copy this to .claude/settings.local.json to customize your personal settings",
+  "_usage": "cp .claude/settings.local.json.template .claude/settings.local.json",
+  "_note": "settings.local.json overrides settings.json and is git-ignored",
+
+  "autonomous": {
+    "enabled": true,
+    "mode": "80-20",
+    "description": "Your personal autonomous mode preference"
+  },
+
+  "permissions": {
+    "_comment": "Customize these to your comfort level",
+
+    "autoApprove": {
+      "Read": true,
+      "ToolSearch": true,
+      "mcp_*": "read_only"
+    },
+
+    "Write": {
+      "enabled": true,
+      "rules": [
+        {
+          "pattern": "specs/**/*",
+          "autoApprove": true
+        },
+        {
+          "pattern": "tests/**/*",
+          "autoApprove": true
+        },
+        {
+          "pattern": "src/**/*.py",
+          "autoApprove": true,
+          "backup": true
+        },
+        {
+          "pattern": "src/**/*.ts",
+          "autoApprove": true,
+          "backup": true
+        },
+        {
+          "pattern": "*.md",
+          "autoApprove": true
+        },
+        {
+          "pattern": ".env*",
+          "autoApprove": false
+        }
+      ],
+      "maxFilesPerOperation": 50,
+      "createBackup": true
+    },
+
+    "Edit": {
+      "enabled": true,
+      "autoApprove": true,
+      "createBackup": true
+    },
+
+    "Bash": {
+      "allowedPatterns": [
+        "git status",
+        "git diff",
+        "git diff *",
+        "git log",
+        "git log *",
+        "git show *",
+        "git branch",
+        "git checkout -b *",
+        "git add *",
+        "git commit *",
+        "git push *",
+        "poetry install",
+        "poetry run *",
+        "pnpm install",
+        "pnpm *",
+        "pytest *",
+        "vitest *",
+        "docker *",
+        "docker-compose *",
+        "gh pr *",
+        "gh issue *"
+      ],
+
+      "blockedPatterns": [
+        "*rm -rf*",
+        "*sudo *",
+        "*git reset --hard*",
+        "*git push --force*"
+      ],
+
+      "autoApprove": "allowedOnly",
+      "timeout": 300000
+    }
+  },
+
+  "checkpoints": {
+    "_comment": "Customize when you want to be prompted",
+
+    "beforeCommit": false,
+    "beforePush": false,
+    "beforePR": true,
+    "onTestFailure": true,
+    "onEvalFailure": true,
+    "onMultiRepo": true,
+    "onArchitectureChange": true,
+    "onSecurityChange": true,
+
+    "escalation": {
+      "maxFilesChanged": 50,
+      "maxReposAffected": 3,
+      "criticalPaths": [
+        "src/auth/**/*",
+        "src/security/**/*",
+        ".env*",
+        "secrets/**/*"
+      ]
+    }
+  },
+
+  "safety": {
+    "_comment": "Safety features - generally keep these enabled",
+
+    "worktreeIsolation": true,
+    "createBackups": true,
+    "validateBeforeCommit": true,
+    "rollbackOnFailure": true,
+    "dryRunFirst": false,
+
+    "preCommitChecks": [
+      "lint",
+      "format-check",
+      "test-changed"
+    ]
+  },
+
+  "_examples": {
+    "_comment": "Common customization examples",
+
+    "more_cautious": {
+      "description": "If you want more prompts, set these to true:",
+      "beforeCommit": true,
+      "beforePush": true,
+      "dryRunFirst": true
+    },
+
+    "more_autonomous": {
+      "description": "If you want fewer prompts, set these to false:",
+      "beforePR": false,
+      "onTestFailure": false
+    },
+
+    "disable_autonomous": {
+      "description": "To disable autonomous mode entirely:",
+      "autonomous": {
+        "enabled": false
+      }
+    }
+  }
+}
