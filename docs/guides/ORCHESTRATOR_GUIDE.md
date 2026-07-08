@@ -49,13 +49,13 @@ claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins
 ```
 
 **Pros:**
-- ✅ Simple, direct
-- ✅ Fast (no orchestrator overhead)
+- Simple, direct
+- Fast (no orchestrator overhead)
 
 **Cons:**
-- ❌ No automatic knowledge injection
-- ❌ No Foundations standards enforcement
-- ❌ You choose repository manually
+- No automatic knowledge injection
+- No Foundations standards enforcement
+- You choose repository manually
 
 ---
 
@@ -68,8 +68,8 @@ claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins
 python3 -m orchestrator implement SEMI-1413
 
 # Output:
-# ✅ Routed SEMI-1413 → semi
-# ✅ Knowledge context prepared: /tmp/knowledge_context_xyz.md
+#  Routed SEMI-1413 → semi
+#  Knowledge context prepared: /tmp/knowledge_context_xyz.md
 # 
 # To execute:
 #   1. cd ~/Documents/Development/EM-AISoftwareFactory
@@ -81,13 +81,13 @@ python3 -m orchestrator implement SEMI-1413
 ```
 
 **Pros:**
-- ✅ Auto-routes to correct repository
-- ✅ Loads 45KB+ of repository knowledge
-- ✅ Enforces Foundations standards
-- ✅ Applies repo-specific patterns
+- Auto-routes to correct repository
+- Loads repository knowledge
+- Enforces Foundations standards
+- Applies repo-specific patterns
 
 **Cons:**
-- ⚠️ Extra step (copy/paste commands)
+- Extra step (copy/paste commands)
 
 ---
 
@@ -102,7 +102,7 @@ python3 -m orchestrator implement SEMI-1413
 python3 -m orchestrator multi-repo ARCH-500
 
 # Output:
-# ✅ Routed ARCH-500 to repositories: runtime, runtime-ui
+#  Routed ARCH-500 to repositories: runtime, runtime-ui
 # 
 # Implementation order (respects dependencies):
 #   1. runtime (base dependency)
@@ -126,7 +126,7 @@ python3 -m orchestrator multi-repo ARCH-500
 python3 -m orchestrator multi-repo SEMI-1413 SEMI-1414 T2D-890 RT-567 UI-123
 
 # Output:
-# ✅ Routing summary:
+#  Routing summary:
 #   - semi: SEMI-1413, SEMI-1414
 #   - talk2data: T2D-890
 #   - runtime: RT-567
@@ -158,7 +158,7 @@ When you use `--context-file`, the skill receives:
 
 ---
 
-## Architecture (45,533 chars)
+## Architecture
 
 ### Wafer Processing Pipeline
 The wafer processing pipeline consists of...
@@ -171,7 +171,7 @@ Workflow state changes are event-sourced...
 
 ---
 
-## Coding Patterns (291 chars)
+## Coding Patterns
 
 - Use context managers for all resource cleanup
 - Async/await for I/O operations
@@ -180,7 +180,7 @@ Workflow state changes are event-sourced...
 
 ---
 
-## Conventions (249 chars)
+## Conventions
 
 - Imports: absolute only (no relative imports)
 - File naming: snake_case.py
@@ -189,13 +189,13 @@ Workflow state changes are event-sourced...
 
 ---
 
-## Foundations Standards (8,411 chars)
+## Foundations Standards
 
 ### Air-Gapped Requirements (CRITICAL)
-- ❌ NO cloud-specific APIs (AWS, GCP, Azure)
-- ❌ NO cloud IAM dependencies
-- ✅ Helm charts must deploy without cloud provider
-- ✅ Use Crossplane for infrastructure abstraction
+- NO cloud-specific APIs (AWS, GCP, Azure)
+- NO cloud IAM dependencies
+- Helm charts must deploy without cloud provider
+- Use Crossplane for infrastructure abstraction
 
 ### Definition of Done
 1. 80% test coverage minimum
@@ -226,11 +226,11 @@ The AI reads this context and:
 3. **Enforces Foundations**
    ```python
    # AI avoids cloud APIs (from standards)
-   # ❌ DON'T:
+   #  DON'T:
    # import boto3
    # s3 = boto3.client('s3')
    
-   # ✅ DO:
+   #  DO:
    from storage import ObjectStore  # Abstracted
    store = ObjectStore.from_config()
    ```
@@ -254,7 +254,7 @@ The AI reads this context and:
 
 # Check what was extracted
 ls -la knowledge/repositories/semi/
-# architecture.md  - 45KB
+# architecture.md
 # patterns.md      - 291 bytes
 # conventions.md   - 249 bytes
 # dependencies.md  - 230 bytes
@@ -434,8 +434,8 @@ jira:
 python3 -m orchestrator test NEWREPO-123
 
 # Should output:
-# ✅ Routed NEWREPO-123 → new-repo
-# ✅ Loaded knowledge for new-repo: XXX chars
+#  Routed NEWREPO-123 → new-repo
+#  Loaded knowledge for new-repo: XXX chars
 ```
 
 ---
@@ -606,10 +606,10 @@ ls -la ~/Documents/Development/
 
 | Scenario | Command | Knowledge | Routing |
 |----------|---------|-----------|---------|
-| **Quick single-repo** | `cd repo && /autonomous-implement` | ❌ No | Manual (you cd) |
-| **Single-repo + knowledge** | `orchestrator implement` | ✅ Yes | Auto |
-| **Multi-repo** | `orchestrator multi-repo` | ✅ Yes | Auto |
-| **Batch** | `orchestrator multi-repo ISSUE1 ISSUE2...` | ✅ Yes | Auto |
+| **Quick single-repo** | `cd repo && /autonomous-implement` |  No | Manual (you cd) |
+| **Single-repo + knowledge** | `orchestrator implement` |  Yes | Auto |
+| **Multi-repo** | `orchestrator multi-repo` |  Yes | Auto |
+| **Batch** | `orchestrator multi-repo ISSUE1 ISSUE2...` |  Yes | Auto |
 
 ### Knowledge Injection
 
@@ -622,4 +622,4 @@ ls -la ~/Documents/Development/
 
 ---
 
-**The orchestrator transforms "which repo?" and "what patterns?" into "just implement it correctly."** 🎯
+**The orchestrator transforms "which repo?" and "what patterns?" into "just implement it correctly."** 

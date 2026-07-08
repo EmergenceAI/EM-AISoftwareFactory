@@ -1,14 +1,28 @@
 # Multi-Agent Autonomous System - Testing Guide
 
-## Quick Start Testing
+**Purpose:** This guide is for testing the multi-agent system itself (skills, workflows, integration).
 
-Follow these steps to test the multi-agent system from simplest to most complex.
+**For normal usage:** See [QUICKSTART.md](QUICKSTART.md) or [ORCHESTRATOR_GUIDE.md](ORCHESTRATOR_GUIDE.md)
 
 ---
 
 ## Prerequisites
 
-### 1. Environment Variables
+### 1. Install Plugin
+
+```bash
+# In Claude Code
+/plugin install em-software-factory@em-plugins
+```
+
+Or for development testing:
+
+```bash
+# Use relative path
+claude --plugin-dir ../EM-AISoftwareFactory
+```
+
+### 2. Environment Variables (Optional - for real Jira/GitHub)
 
 ```bash
 # Check if variables are set
@@ -27,34 +41,7 @@ export GITHUB_TOKEN=ghp_your_github_token
 source ~/.zshrc  # or source ~/.bashrc
 ```
 
-### 2. Install Plugin in Test Repository
-
-```bash
-# Go to a test repository (e.g., em-talk2data)
-cd ~/Documents/Development/em-talk2data
-
-# Install plugin as git submodule
-git submodule add https://github.com/EmergenceAI/EM-AISoftwareFactory.git .claude/plugins/em-software-factory
-
-# Initialize submodule
-git submodule update --init --recursive
-
-# Commit
-git add .gitmodules .claude/plugins/em-software-factory
-git commit -m "Add EM Software Factory plugin"
-```
-
-### 3. Verify Plugin Installation
-
-```bash
-# Check plugin exists
-ls -la .claude/plugins/em-software-factory/
-
-# Should show:
-# - skills/ directory
-# - workflows/ directory
-# - .claude-plugin/plugin.json
-```
+**Note:** The system works with mock data if these aren't set.
 
 ---
 
@@ -63,10 +50,10 @@ ls -la .claude/plugins/em-software-factory/
 **Goal:** Confirm the plugin and skills are accessible.
 
 ```bash
-cd ~/Documents/Development/em-talk2data
+cd /path/to/test/repository
 
-# Launch Claude with plugin
-claude --plugin-dir .claude/plugins/em-software-factory
+# Launch Claude (plugin already installed)
+claude
 ```
 
 **In Claude Code:**
@@ -82,8 +69,8 @@ You should see the new skills listed:
 - `/autonomous-implement`
 - `/autonomous-sprint` (workflow)
 
-**✅ Pass:** Skills are listed  
-**❌ Fail:** Skills not showing → Check plugin.json has `"skills": "./skills"`
+** Pass:** Skills are listed  
+** Fail:** Skills not showing → Check plugin.json has `"skills": "./skills"`
 
 ---
 
@@ -129,8 +116,8 @@ Would create branch: story/ABI-XXX-test-multi-agent-system
 - Branch created in GitHub
 - Jira issue has comment with branch link
 
-**✅ Pass:** Branch created, Jira updated  
-**❌ Fail:** Check GitHub token permissions, Jira API access
+** Pass:** Branch created, Jira updated  
+** Fail:** Check GitHub token permissions, Jira API access
 
 ---
 
@@ -178,8 +165,8 @@ ls -la tests/evals/ABI-XXX/
 cat tests/evals/ABI-XXX/test_functional.py
 ```
 
-**✅ Pass:** Test files created with correct structure  
-**❌ Fail:** Check if acceptance criteria format is recognized
+** Pass:** Test files created with correct structure  
+** Fail:** Check if acceptance criteria format is recognized
 
 ---
 
@@ -198,8 +185,8 @@ cat tests/evals/ABI-XXX/test_functional.py
 - Go to ABI-XXX in Jira
 - See comment with "Testing Jira update skill"
 
-**✅ Pass:** Comment appears in Jira  
-**❌ Fail:** Check Jira API token permissions
+** Pass:** Comment appears in Jira  
+** Fail:** Check Jira API token permissions
 
 ---
 
@@ -242,35 +229,33 @@ Create a simple hello world function for testing autonomous implementation.
 
 **What to watch for:**
 
-The skill will execute these steps (takes 3-7 minutes):
-1. ✓ Fetch Jira issue
-2. ✓ Research codebase (10-15s)
-3. ✓ Create implementation plan (30-60s)
-4. ✓ Generate eval tests (5-10s)
-5. ✓ Implement solution (2-5 min)
-6. ✓ Run evals (10-30s)
-7. ✓ Create PR (if evals pass)
-8. ✓ Code review
-9. ✓ Update Jira
+The skill will execute these steps:
+1. Fetch Jira issue
+2. Research codebase
+3. Create implementation plan
+4. Generate eval tests
+5. Implement solution
+6. Run evals
+7. Create PR (if evals pass)
+8. Code review
+9. Update Jira
 
 **Expected output:**
 ```
-✓ Successfully implemented ABI-XXX: Add hello world function
+Successfully implemented ABI-XXX: Add hello world function
 
-Timeline:
-  ✓ Researched codebase (12s)
-  ✓ Created implementation plan (45s)
-  ✓ Generated evals (8s)
-  ✓ Implemented solution (2m 24s)
-  ✓ Ran evals - 3/3 passed (12s)
-  ✓ Created PR #789 (5s)
-  ✓ Automated code review (18s)
-  ✓ Updated Jira (3s)
+Steps:
+  - Researched codebase
+  - Created implementation plan
+  - Generated evals
+  - Implemented solution
+  - Ran evals - 3/3 passed
+  - Created PR #789
+  - Automated code review
+  - Updated Jira
 
-Total time: 3 minutes 47 seconds
-
-**Pull Request:** https://github.com/EmergenceAI/em-talk2data/pull/789
-**Jira Issue:** https://emergenceai.atlassian.net/browse/ABI-XXX
+Pull Request: https://github.com/EmergenceAI/em-talk2data/pull/789
+Jira Issue: https://emergenceai.atlassian.net/browse/ABI-XXX
 
 Status: Ready for human review and merge
 ```
@@ -310,8 +295,8 @@ cat tests/evals/ABI-XXX/test_functional.py
 pytest tests/evals/ABI-XXX/ -v
 ```
 
-**✅ Pass:** All verifications complete, PR created, tests pass  
-**❌ Fail:** See Troubleshooting section below
+** Pass:** All verifications complete, PR created, tests pass  
+** Fail:** See Troubleshooting section below
 
 ---
 
@@ -405,8 +390,8 @@ gh pr list | grep ABI-XX
 - All in parallel (total time ~4-5 min, not 9-12 min sequential)
 - All with passing evals
 
-**✅ Pass:** 3 PRs created in ~4-5 minutes with passing evals  
-**❌ Fail:** Check concurrency settings, system resources
+** Pass:** 3 PRs created in ~4-5 minutes with passing evals  
+** Fail:** Check concurrency settings, system resources
 
 ---
 
@@ -436,8 +421,8 @@ DRY RUN: Stopping before implementation
 Would implement 8 issues
 ```
 
-**✅ Pass:** Shows what would happen, no actual changes  
-**❌ Fail:** Check JQL syntax
+** Pass:** Shows what would happen, no actual changes  
+** Fail:** Check JQL syntax
 
 ---
 
@@ -656,9 +641,9 @@ CLAUDE_DEBUG=1 claude --plugin-dir .claude/plugins/em-software-factory
 ```
 
 **Ask for help:**
-- Review documentation: [MULTI_AGENT_COMPLETE.md](MULTI_AGENT_COMPLETE.md)
 - Check skill docs: `skills/*/SKILL.md`
-- Workflow guide: [workflows/README.md](workflows/README.md)
+- Workflow guide: [workflows/README.md](../../workflows/README.md)
+- User guides: [QUICKSTART.md](QUICKSTART.md), [ORCHESTRATOR_GUIDE.md](ORCHESTRATOR_GUIDE.md)
 
 ---
 
@@ -691,4 +676,4 @@ CLAUDE_DEBUG=1 claude --plugin-dir .claude/plugins/em-software-factory
 
 ---
 
-**Good luck testing! Start small and scale up.** 🚀
+**Good luck testing! Start small and scale up.** 

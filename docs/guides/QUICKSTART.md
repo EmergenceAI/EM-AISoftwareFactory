@@ -1,6 +1,29 @@
 # Quick Start Guide
 
-Get started with AI Software Factory in **5 minutes**.
+Get started with AI Software Factory quickly.
+
+---
+
+## Installation
+
+### Option 1: Private Marketplace (Recommended)
+
+```bash
+# In Claude Code
+/plugin install em-software-factory@em-plugins
+```
+
+Skills are available immediately across all projects.
+
+### Option 2: Relative Path
+
+```bash
+# If the factory is in your workspace
+claude --plugin-dir ../EM-AISoftwareFactory
+
+# Or with full path
+claude --plugin-dir /path/to/EM-AISoftwareFactory
+```
 
 ---
 
@@ -14,19 +37,23 @@ Get started with AI Software Factory in **5 minutes**.
 
 ## Option 1: Single Repository (Fastest)
 
-### 1. Navigate to Repository
+### 1. Install Plugin
+
+Use one of the installation methods above.
+
+### 2. Navigate to Repository
 
 ```bash
-cd ~/Documents/Development/em-semi
+cd /path/to/your/repo
 ```
 
-### 2. Start Claude Code
+### 3. Start Claude Code
 
 ```bash
-claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins/em-software-factory
+claude
 ```
 
-### 3. Implement an Issue
+### 4. Implement an Issue
 
 ```bash
 /autonomous-implement SEMI-1413
@@ -42,8 +69,6 @@ That's it! The skill will:
 7. Validate with tests
 8. Create a PR
 9. Update Jira
-
-**Time:** ~10 minutes from Jira to PR
 
 ---
 
@@ -69,10 +94,10 @@ python3 -m orchestrator implement SEMI-1413
 The orchestrator prints exact commands to run in Claude Code with knowledge context.
 
 **Benefits:**
-- ✅ Auto-routes to correct repository
-- ✅ Loads 45KB+ of repository knowledge
-- ✅ Enforces Foundations standards
-- ✅ Applies repo-specific patterns
+- Auto-routes to correct repository
+- Loads repository knowledge
+- Enforces Foundations standards
+- Applies repo-specific patterns
 
 ---
 
@@ -151,15 +176,15 @@ After implementation, you review the PR before merge.
 
 ## What Gets Automated
 
-- ✅ Branch creation from main
-- ✅ Codebase research
-- ✅ Implementation planning
-- ✅ Test generation
-- ✅ Code implementation
-- ✅ Test execution
-- ✅ PR creation
-- ✅ Code review
-- ✅ Jira updates
+- Branch creation from main
+- Codebase research
+- Implementation planning
+- Test generation
+- Code implementation
+- Test execution
+- PR creation
+- Code review
+- Jira updates
 
 **You decide:** Plan approval, PR merge
 
@@ -201,9 +226,9 @@ The system uses mock data if Jira MCP is not configured. Issue keys must match p
 
 ## Next Steps
 
-1. **[10 min]** Try `/autonomous-implement` on a real issue
-2. **[15 min]** Read [Orchestrator Guide](ORCHESTRATOR_GUIDE.md)
-3. **[Optional]** Set up Jira MCP for real data
+1. Try `/autonomous-implement` on a real issue
+2. Read [Orchestrator Guide](ORCHESTRATOR_GUIDE.md)
+3. Set up Jira MCP for real data (optional)
 
 ---
 
@@ -211,8 +236,4 @@ The system uses mock data if Jira MCP is not configured. Issue keys must match p
 
 - **Full README:** [../../README.md](../../README.md)
 - **Orchestrator Guide:** [ORCHESTRATOR_GUIDE.md](ORCHESTRATOR_GUIDE.md)
-- **Architecture:** [../architecture/ENGINEERING_OS_ARCHITECTURE.md](../architecture/ENGINEERING_OS_ARCHITECTURE.md)
-
----
-
-**Get implementing in 5 minutes. Get proficient in 30 minutes.** 🚀
+- **Engineering Standards:** [../../knowledge/foundations/standards.md](../../knowledge/foundations/standards.md) 

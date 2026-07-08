@@ -6,15 +6,43 @@ Transform Jira issues into tested, reviewed PRs across multiple repositories wit
 
 ---
 
+## Installation
+
+### Option 1: Private Marketplace (Recommended)
+
+```bash
+# In Claude Code
+/plugin install em-software-factory@em-plugins
+```
+
+Skills are available immediately across all projects.
+
+### Option 2: Relative Path
+
+```bash
+# If the factory is in your workspace
+claude --plugin-dir ../EM-AISoftwareFactory
+
+# Or with full path
+claude --plugin-dir /path/to/EM-AISoftwareFactory
+```
+
+---
+
 ## Quick Start
 
 ### Single Repository
 
 ```bash
-# Navigate to your repository
-cd ~/Documents/Development/em-semi
+# 1. Install the plugin (see Installation above)
 
-# Implement a Jira issue
+# 2. Navigate to your repository
+cd /path/to/your/repo
+
+# 3. Start Claude Code
+claude
+
+# 4. Implement a Jira issue
 /autonomous-implement SEMI-1413
 
 # That's it! Creates plan → implements → tests → PR → updates Jira
@@ -23,13 +51,15 @@ cd ~/Documents/Development/em-semi
 ### Multi-Repository with Orchestrator
 
 ```bash
-# From workspace root
-cd ~/Documents/Development/EM-AISoftwareFactory
+# 1. Install the plugin (see Installation above)
 
-# Auto-routes to correct repository and injects knowledge
+# 2. From workspace root
+cd /path/to/em-aisoftwarefactory
+
+# 3. Auto-routes to correct repository and injects knowledge
 python3 -m orchestrator implement SEMI-1413
 
-# Follow the printed instructions in Claude Code
+# 4. Follow the printed instructions in Claude Code
 ```
 
 ---
@@ -38,39 +68,32 @@ python3 -m orchestrator implement SEMI-1413
 
 An **Engineering OS** that provides:
 
-✅ **Single-Command SDLC** - From Jira → tested PR in 10 minutes  
-✅ **Multi-Repo Orchestration** - Auto-routes issues to 5 repositories  
-✅ **Knowledge-Driven** - Applies repo-specific patterns automatically  
-✅ **Quality Enforced** - 80% coverage, air-gapped, foundations standards  
-✅ **80% Autonomous** - Strategic checkpoints only (plan, PR)
+- **Single-Command SDLC** - From Jira → tested PR  
+- **Multi-Repo Orchestration** - Auto-routes issues to 5 repositories  
+- **Knowledge-Driven** - Applies repo-specific patterns automatically  
+- **Quality Enforced** - 80% coverage, air-gapped, foundations standards  
+- **80% Autonomous** - Strategic checkpoints only (plan, PR)
 
 ---
 
 ## Documentation
 
-### 📘 Core Guides
+### Core Guides
 
-| Guide | Description | Time |
-|-------|-------------|------|
-| **[Quickstart](docs/guides/QUICKSTART.md)** | Get started | 5 min |
-| **[Orchestrator Usage](#orchestrator-usage)** | Single & multi-repo | 10 min |
-| **[Skills Reference](#skills-reference)** | All available skills | Reference |
-| **[Knowledge System](#knowledge-system)** | Architecture, ADRs, patterns | Reference |
+| Guide | Description |
+|-------|-------------|
+| **[Quickstart](docs/guides/QUICKSTART.md)** | Get started |
+| **[Orchestrator Usage](#orchestrator-usage)** | Single & multi-repo |
+| **[Skills Reference](#skills-reference)** | All available skills |
+| **[Knowledge System](#knowledge-system)** | Architecture, ADRs, patterns |
 
-### 🏗️ Architecture
+### Documentation
 
 | Doc | Purpose |
 |-----|---------|
-| **[System Architecture](docs/architecture/ENGINEERING_OS_ARCHITECTURE.md)** | Complete design |
-| **[Foundations Standards](docs/architecture/FOUNDATIONS_KNOWLEDGE_COMPLETE.md)** | Air-gapped, DoD |
-
-### ⚙️ Setup
-
-| Guide | When to Use |
-|-------|-------------|
-| **[Knowledge Setup](docs/setup/KNOWLEDGE_SETUP_COMPLETE.md)** | Extract repo knowledge |
-| **[Silent Mode](docs/setup/SILENT_MODE_COMPLETE.md)** | Configure automation |
-| **[Orchestrator Setup](docs/setup/ORCHESTRATOR_IMPLEMENTATION_COMPLETE.md)** | Multi-repo config |
+| **[Foundations Standards](knowledge/foundations/standards.md)** | Air-gapped, DoD, engineering principles |
+| **[Orchestrator Guide](docs/guides/ORCHESTRATOR_GUIDE.md)** | Complete orchestrator usage |
+| **[Complete Docs](docs/README.md)** | Full documentation index |
 
 ---
 
@@ -84,30 +107,30 @@ The orchestrator provides **workspace-level automation** with repository routing
 
 ```bash
 # 1. Navigate to repository
-cd ~/Documents/Development/em-semi
+cd /path/to/your/repo
 
-# 2. Start Claude Code with plugin
-claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins/em-software-factory
+# 2. Start Claude Code (plugin already installed)
+claude
 
 # 3. Run autonomous-implement
 /autonomous-implement SEMI-1413
 ```
 
 **What happens:**
-- ✅ Fetches SEMI-1413 from Jira
-- ✅ Creates branch from main
-- ✅ Researches em-semi codebase
-- ✅ Creates implementation plan
-- ✅ Generates tests from acceptance criteria
-- ✅ Implements solution
-- ✅ Validates with tests
-- ✅ Creates PR
-- ✅ Updates Jira
+- Fetches SEMI-1413 from Jira
+- Creates branch from main
+- Researches em-semi codebase
+- Creates implementation plan
+- Generates tests from acceptance criteria
+- Implements solution
+- Validates with tests
+- Creates PR
+- Updates Jira
 
 **Limitations:**
-- ❌ No repository-specific knowledge injection
-- ❌ No Foundations standards enforcement
-- ❌ Manual repository selection
+- No repository-specific knowledge injection
+- No Foundations standards enforcement
+- Manual repository selection
 
 ---
 
@@ -120,22 +143,19 @@ claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins
 python3 -m orchestrator test SEMI-1413
 
 # Output:
-# ✅ Routed SEMI-1413 → semi
-# ✅ Loaded knowledge: 45KB architecture, patterns, conventions
+#  Routed SEMI-1413 → semi
+#  Loaded knowledge: architecture, patterns, conventions
 
 # Step 2: Generate implementation instructions
 python3 -m orchestrator implement SEMI-1413
 
 # Output:
-# ✅ Knowledge context prepared: /tmp/knowledge_context_xyz.md
-# ✅ Repository: /Users/username/Documents/Development/em-semi
+#  Knowledge context prepared: /tmp/knowledge_context_xyz.md
+#  Repository: /path/to/your/repo
 # 
-# To execute, run:
-#   cd ~/Documents/Development/EM-AISoftwareFactory
-#   claude --plugin-dir .claude/plugins/em-software-factory
-# 
-# Then:
-#   cd ~/Documents/Development/em-semi
+# To execute:
+#   cd /path/to/your/repo
+#   claude
 #   /autonomous-implement SEMI-1413 --context-file /tmp/knowledge_context_xyz.md
 
 # Step 3: Follow the instructions
@@ -143,10 +163,10 @@ python3 -m orchestrator implement SEMI-1413
 ```
 
 **What the orchestrator adds:**
-- ✅ **Auto-routing**: SEMI-1413 → em-semi (via Jira component)
-- ✅ **Knowledge injection**: 45KB of em-semi architecture/patterns
-- ✅ **Foundations enforcement**: Air-gapped, 80% coverage, DoD
-- ✅ **Standards compliance**: Automatic validation
+- **Auto-routing**: SEMI-1413 → em-semi (via Jira component)
+- **Knowledge injection**: em-semi architecture/patterns
+- **Foundations enforcement**: Air-gapped, 80% coverage, DoD
+- **Standards compliance**: Automatic validation
 
 **Routing logic:**
 ```yaml
@@ -169,9 +189,9 @@ jira:
 python3 -m orchestrator multi-repo SEMI-1413 T2D-890 RT-567
 
 # Output:
-# ✅ SEMI-1413 → em-semi
-# ✅ T2D-890 → em-talk2data
-# ✅ RT-567 → em-runtime
+#  SEMI-1413 → em-semi
+#  T2D-890 → em-talk2data
+#  RT-567 → em-runtime
 # 
 # Generated 3 instruction sets (see /tmp/orchestrator_instructions_*.sh)
 ```
@@ -182,7 +202,6 @@ python3 -m orchestrator multi-repo SEMI-1413 T2D-890 RT-567
 
 ### Autonomous Skills (End-to-End)
 
-| Skill | Description | Autonomy | Time |
 |-------|-------------|----------|------|
 | **`/autonomous-implement`** | Full SDLC: Jira → PR | 80% (2 checkpoints) | 10 min |
 | **`/autonomous-sprint`** | Full sprint automation | 80% (3 checkpoints) | 25 min |
@@ -221,12 +240,12 @@ The knowledge system extracts and applies repository-specific context automatica
 knowledge/
 ├── repositories/
 │   ├── semi/
-│   │   ├── architecture.md      ← 45KB of em-semi architecture
+│   │   ├── architecture.md      ← em-semi architecture
 │   │   ├── patterns.md          ← Coding patterns (context managers, etc.)
 │   │   ├── conventions.md       ← Style guide (imports, type hints)
 │   │   └── dependencies.md      ← Package management approach
 │   ├── talk2data/
-│   │   └── ...                  ← 2MB of talk2data knowledge
+│   │   └── ...                  ← talk2data knowledge
 │   └── runtime/
 │       └── ...                  ← Runtime knowledge
 └── foundations/
@@ -271,7 +290,7 @@ The context file contains:
 
 ## Foundations Standards
 ### Air-Gapped Requirements (CRITICAL)
-- ❌ NO cloud APIs (AWS, GCP, Azure)
+- NO cloud APIs (AWS, GCP, Azure)
 ...
 ```
 
@@ -329,7 +348,7 @@ repositories:
 ```yaml
 # workspace.yaml
 workspace:
-  root: /Users/username/Documents/Development
+  root: /path/to/your/workspace
 
 repositories:
   - name: semi
@@ -362,31 +381,7 @@ jira:
 python3 -m orchestrator test YOUR-ISSUE-123
 
 # 4. Verify knowledge loaded
-# Should show: "Loaded knowledge for your-repo: XXX chars"
-```
-
----
-
-## Installation
-
-### Option 1: Plugin Mode (Current Usage)
-
-```bash
-# Start Claude Code with plugin
-claude --plugin-dir .claude/plugins/em-software-factory
-
-# Skills available immediately
-/autonomous-implement SEMI-1413
-```
-
-### Option 2: Standalone Orchestrator
-
-```bash
-# No Claude Code needed for routing
-python3 -m orchestrator test SEMI-1413
-python3 -m orchestrator implement SEMI-1413
-
-# Then copy/paste commands into Claude Code
+# Should show: "Loaded knowledge for your-repo"
 ```
 
 ---
@@ -420,7 +415,7 @@ export JIRA_API_TOKEN=your_api_token
 
 ```bash
 # Quick (no orchestrator)
-cd em-semi && /autonomous-implement SEMI-1413
+cd /path/to/your/repo && /autonomous-implement SEMI-1413
 
 # Full (with knowledge)
 python3 -m orchestrator implement SEMI-1413
@@ -458,7 +453,7 @@ python3 -m orchestrator implement SEMI-1413
 cat workspace.yaml | grep -A 5 "repositories:"
 
 # Verify path exists
-ls -la ~/Documents/Development/em-semi
+ls -la /path/to/your/repo
 ```
 
 ### "No knowledge found"
