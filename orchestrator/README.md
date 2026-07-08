@@ -36,7 +36,7 @@ The orchestrator **delegates** to existing `/autonomous-implement` skill while p
 │  /autonomous-implement ABI-123                              │
 │     (with knowledge context injected)                       │
 │                                                              │
-│  ✅ research → plan → evals → implement → test → PR         │
+│   research → plan → evals → implement → test → PR         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -241,15 +241,15 @@ Skills receive this context and use it during implementation!
 
 ## What Orchestrator Does NOT Do
 
-**❌ Does NOT reimplement skills**
+** Does NOT reimplement skills**
 - The skills (`/autonomous-implement`, `/research-codebase`, etc.) already work
 - Orchestrator enhances them, doesn't replace them
 
-**❌ Does NOT replace adapters**
+** Does NOT replace adapters**
 - Adapters provide repository-specific commands (build, test, lint)
 - Orchestrator uses adapters to get metadata
 
-**❌ Does NOT store state**
+** Does NOT store state**
 - All orchestration is stateless
 - State lives in Jira, Git, PRs
 
@@ -273,15 +273,15 @@ cd ~/em-runtime
 ```bash
 # From workspace root (any directory):
 python -m orchestrator implement ABI-123
-# ✅ Auto-routes to em-runtime
-# ✅ Injects runtime architecture/patterns
-# ✅ Enforces Foundations standards
+#  Auto-routes to em-runtime
+#  Injects runtime architecture/patterns
+#  Enforces Foundations standards
 
 # Multi-repo issue:
 python -m orchestrator multi-repo SDK-456
-# ✅ Detects affected repos: sdk, runtime, runtime-ui
-# ✅ Executes in parallel with repo-specific knowledge
-# ✅ Links PRs together
+#  Detects affected repos: sdk, runtime, runtime-ui
+#  Executes in parallel with repo-specific knowledge
+#  Links PRs together
 ```
 
 ---
@@ -323,7 +323,7 @@ jira:
 
 ## Development Status
 
-### ✅ Implemented
+### Implemented
 - Router (issue → repository mapping)
 - Knowledge Engine (load repo knowledge + Foundations)
 - Executor (delegate to /autonomous-implement)
@@ -335,7 +335,7 @@ jira:
 - PR cross-linking
 - Jira MCP integration (currently mocked)
 
-### 📋 Planned
+### Planned
 - Workflow orchestration (/autonomous-sprint integration)
 - Reporter (aggregate results across repos)
 - Knowledge sync automation
@@ -350,16 +350,16 @@ python -m orchestrator test ABI-123
 
 # Output:
 # Testing Router...
-#   ✅ Routed ABI-123 → runtime
+#    Routed ABI-123 → runtime
 #
 # Testing Knowledge Engine...
-#   ✅ Loaded knowledge for runtime:
-#      - architecture: 2150 chars
-#      - patterns: 1800 chars
-#      - conventions: 950 chars
+#    Loaded knowledge for runtime:
+#      - architecture
+#      - patterns
+#      - conventions
 #
 # Testing Foundations Standards...
-#   ✅ Loaded foundations standards: 3200 chars
+#    Loaded foundations standards
 ```
 
 ---
@@ -375,33 +375,33 @@ $ python -m orchestrator implement ABI-123
 AI Software Factory - Workspace Orchestrator
 ============================================================
 
-📋 Fetching issue: ABI-123
+ Fetching issue: ABI-123
    Summary: Add rate limiting to API endpoints
 
-🎯 Repository: runtime (auto-routed)
+ Repository: runtime (auto-routed)
 
 ============================================================
 Executing ABI-123 in runtime
 ============================================================
 
-📚 Loading knowledge context...
-   ✅ Architecture: 2,150 chars
-   ✅ Patterns: 1,800 chars
-   ✅ Conventions: 950 chars
-   ✅ Foundations: 3,200 chars
+ Loading knowledge context...
+    Architecture
+    Patterns
+    Conventions
+    Foundations
 
-🤖 Invoking /autonomous-implement with knowledge context...
+ Invoking /autonomous-implement with knowledge context...
 
 [Skill execution output...]
 
 ============================================================
 Execution Summary: ABI-123
 ============================================================
-Overall: ✅ SUCCESS
+Overall:  SUCCESS
 Duration: 245.3s
 Repositories: 1
 
-✅ runtime: ABI-123
+ runtime: ABI-123
    PR: https://github.com/EmergenceAI/em-runtime/pull/789
    Branch: feature/ABI-123-rate-limiting
 ============================================================
@@ -416,32 +416,32 @@ $ python -m orchestrator multi-repo SDK-456
 AI Software Factory - Multi-Repo Orchestrator
 ============================================================
 
-📋 Fetching issue: SDK-456
+ Fetching issue: SDK-456
    Summary: Add new authentication method
 
-🎯 Repositories: sdk, runtime, runtime-ui (auto-detected)
+ Repositories: sdk, runtime, runtime-ui (auto-detected)
 
 Executing SDK-456-sdk in sdk...
-   ✅ PR: https://github.com/EmergenceAI/em-sdk/pull/123
+    PR: https://github.com/EmergenceAI/em-sdk/pull/123
 
 Executing SDK-456-runtime in runtime...
-   ✅ PR: https://github.com/EmergenceAI/em-runtime/pull/790
+    PR: https://github.com/EmergenceAI/em-runtime/pull/790
 
 Executing SDK-456-ui in runtime-ui...
-   ✅ PR: https://github.com/EmergenceAI/em-runtime-ui/pull/456
+    PR: https://github.com/EmergenceAI/em-runtime-ui/pull/456
 
 ============================================================
 Execution Summary: SDK-456
 ============================================================
-Overall: ✅ SUCCESS
+Overall:  SUCCESS
 Duration: 678.9s
 Repositories: 3
 
-✅ sdk: SDK-456-sdk
+ sdk: SDK-456-sdk
    PR: https://github.com/EmergenceAI/em-sdk/pull/123
-✅ runtime: SDK-456-runtime
+ runtime: SDK-456-runtime
    PR: https://github.com/EmergenceAI/em-runtime/pull/790
-✅ runtime-ui: SDK-456-ui
+ runtime-ui: SDK-456-ui
    PR: https://github.com/EmergenceAI/em-runtime-ui/pull/456
 ============================================================
 ```
@@ -450,7 +450,7 @@ Repositories: 3
 
 ## Why This Approach?
 
-### ✅ Advantages
+### Advantages
 
 1. **Reuses existing skills** - No duplicate implementation
 2. **Thin layer** - ~500 lines vs ~5000 for full reimplementation
@@ -458,7 +458,7 @@ Repositories: 3
 4. **Multi-repo aware** - Handles cross-repository coordination
 5. **Standards enforcement** - Foundations requirements built-in
 
-### 🎯 Use Cases
+### Use Cases
 
 - **Single developer, multi-repo workspace** - Navigate between repos easily
 - **Onboarding** - New devs don't need to know which repo
