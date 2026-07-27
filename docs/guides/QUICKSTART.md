@@ -31,7 +31,7 @@ claude --plugin-dir /path/to/EM-AISoftwareFactory
 
 - **Claude Code** v2.1.81+
 - **Git** repository
-- **Python 3.8+** (for orchestrator)
+- **Python 3.8+** (for harness)
 
 ---
 
@@ -78,7 +78,7 @@ That's it! The skill will:
 
 ```bash
 cd ~/Documents/Development/EM-AISoftwareFactory
-python3 -m orchestrator test SEMI-1413
+python3 -m harness test SEMI-1413
 ```
 
 Output shows which repository the issue routes to and knowledge loaded.
@@ -86,12 +86,12 @@ Output shows which repository the issue routes to and knowledge loaded.
 ### 2. Generate Instructions
 
 ```bash
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 ```
 
 ### 3. Follow the Instructions
 
-The orchestrator prints exact commands to run in Claude Code with knowledge context.
+The harness prints exact commands to run in Claude Code with knowledge context.
 
 **Benefits:**
 - Auto-routes to correct repository
@@ -227,7 +227,7 @@ The system uses mock data if Jira MCP is not configured. Issue keys must match p
 ## Next Steps
 
 1. Try `/autonomous-implement` on a real issue
-2. Read [Orchestrator Guide](ORCHESTRATOR_GUIDE.md)
+2. Read [Harness Guide](HARNESS_GUIDE.md)
 3. Set up Jira MCP for real data (optional)
 
 ---
@@ -235,5 +235,5 @@ The system uses mock data if Jira MCP is not configured. Issue keys must match p
 ## Learn More
 
 - **Full README:** [../../README.md](../../README.md)
-- **Orchestrator Guide:** [ORCHESTRATOR_GUIDE.md](ORCHESTRATOR_GUIDE.md)
+- **Harness Guide:** [HARNESS_GUIDE.md](HARNESS_GUIDE.md)
 - **Engineering Standards:** [../../knowledge/foundations/standards.md](../../knowledge/foundations/standards.md) 

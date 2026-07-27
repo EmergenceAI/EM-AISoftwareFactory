@@ -57,7 +57,7 @@ claude
 cd /path/to/em-aisoftwarefactory
 
 # 3. Auto-routes to correct repository and injects knowledge
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 
 # 4. Follow the printed instructions in Claude Code
 ```
@@ -83,7 +83,7 @@ An **Engineering OS** that provides:
 | Guide | Description |
 |-------|-------------|
 | **[Quickstart](docs/guides/QUICKSTART.md)** | Get started |
-| **[Orchestrator Usage](#orchestrator-usage)** | Single & multi-repo |
+| **[Harness Usage](#harness-usage)** | Single & multi-repo |
 | **[Skills Reference](#skills-reference)** | All available skills |
 | **[Knowledge System](#knowledge-system)** | Architecture, ADRs, patterns |
 
@@ -92,18 +92,18 @@ An **Engineering OS** that provides:
 | Doc | Purpose |
 |-----|---------|
 | **[Foundations Standards](knowledge/foundations/standards.md)** | Air-gapped, DoD, engineering principles |
-| **[Orchestrator Guide](docs/guides/ORCHESTRATOR_GUIDE.md)** | Complete orchestrator usage |
+| **[Harness Guide](docs/guides/HARNESS_GUIDE.md)** | Complete harness usage |
 | **[Complete Docs](docs/README.md)** | Full documentation index |
 
 ---
 
-## Orchestrator Usage
+## Harness Usage
 
-The orchestrator provides **workspace-level automation** with repository routing and knowledge injection.
+The harness provides **workspace-level automation** with repository routing and knowledge injection.
 
 ### Single Repository
 
-**Direct skill invocation (no orchestrator):**
+**Direct skill invocation (no harness):**
 
 ```bash
 # 1. Navigate to repository
@@ -136,18 +136,18 @@ claude
 
 ### Multi-Repository with Orchestrator
 
-**Orchestrator-based (recommended for production):**
+**Harness-based (recommended for production):**
 
 ```bash
 # Step 1: Test routing
-python3 -m orchestrator test SEMI-1413
+python3 -m harness test SEMI-1413
 
 # Output:
 #  Routed SEMI-1413 → semi
 #  Loaded knowledge: architecture, patterns, conventions
 
 # Step 2: Generate implementation instructions
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 
 # Output:
 #  Knowledge context prepared: /tmp/knowledge_context_xyz.md
@@ -162,7 +162,7 @@ python3 -m orchestrator implement SEMI-1413
 # (Opens Claude Code and runs the skill with knowledge context)
 ```
 
-**What the orchestrator adds:**
+**What the harness adds:**
 - **Auto-routing**: SEMI-1413 → em-semi (via Jira component)
 - **Knowledge injection**: em-semi architecture/patterns
 - **Foundations enforcement**: Air-gapped, 80% coverage, DoD
@@ -186,14 +186,14 @@ jira:
 
 ```bash
 # Implement multiple issues across repositories
-python3 -m orchestrator multi-repo SEMI-1413 T2D-890 RT-567
+python3 -m harness multi-repo SEMI-1413 T2D-890 RT-567
 
 # Output:
 #  SEMI-1413 → em-semi
 #  T2D-890 → em-talk2data
 #  RT-567 → em-runtime
 # 
-# Generated 3 instruction sets (see /tmp/orchestrator_instructions_*.sh)
+# Generated 3 instruction sets (see /tmp/harness_instructions_*.sh)
 ```
 
 ---
@@ -256,7 +256,7 @@ knowledge/
 ### Automatic Sync
 
 ```bash
-# Runs automatically before orchestrator
+# Runs automatically before harness
 ./sync_knowledge.sh
 
 # Or manually
@@ -378,7 +378,7 @@ jira:
 ./sync_knowledge.sh
 
 # 3. Test routing
-python3 -m orchestrator test YOUR-ISSUE-123
+python3 -m harness test YOUR-ISSUE-123
 
 # 4. Verify knowledge loaded
 # Should show: "Loaded knowledge for your-repo"
@@ -389,7 +389,7 @@ python3 -m orchestrator test YOUR-ISSUE-123
 ## Requirements
 
 - **Claude Code** v2.1.81+ (for skills)
-- **Python 3.8+** (for orchestrator)
+- **Python 3.8+** (for harness)
 - **Git** (for repositories)
 - **Jira MCP** (optional, for real Jira data)
 
@@ -414,11 +414,11 @@ export JIRA_API_TOKEN=your_api_token
 ### Implement Single Issue
 
 ```bash
-# Quick (no orchestrator)
+# Quick (no harness)
 cd /path/to/your/repo && /autonomous-implement SEMI-1413
 
 # Full (with knowledge)
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 # Follow instructions
 ```
 
@@ -470,7 +470,7 @@ ls -la knowledge/repositories/semi/
 
 ```bash
 # Test routing
-python3 -m orchestrator test SEMI-1413
+python3 -m harness test SEMI-1413
 
 # Check Jira component mapping
 cat workspace.yaml | grep -A 10 "component_mapping:"
@@ -488,7 +488,7 @@ See [CRITICAL_FIX_BRANCHING.md](CRITICAL_FIX_BRANCHING.md) for details.
 
 1. **[5 min]** Read [Quickstart Guide](docs/guides/QUICKSTART.md)
 2. **[10 min]** Try `/autonomous-implement` on a real issue
-3. **[15 min]** Set up orchestrator for your workspace
+3. **[15 min]** Set up harness for your workspace
 4. **[Optional]** Configure Jira MCP for real data
 
 ---

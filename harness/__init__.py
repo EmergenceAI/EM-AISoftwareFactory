@@ -7,7 +7,7 @@ This package provides:
 - Executor: Delegates to /autonomous-implement skill with knowledge context
 - Multi-repo coordination: Handles cross-repository dependencies
 
-The orchestrator is a THIN layer that enhances existing skills with:
+The harness is a THIN layer that enhances existing skills with:
 - Repository-specific knowledge injection
 - Multi-repository routing and coordination
 - Foundations standards enforcement
@@ -37,9 +37,9 @@ __version__ = '0.1.0'
 
 def ensure_knowledge_fresh(verbose: bool = False):
     """
-    Ensure knowledge packs are up-to-date before orchestrator runs.
+    Ensure knowledge packs are up-to-date before harness runs.
 
-    This is called automatically by orchestrator entry points.
+    This is called automatically by harness entry points.
     Only re-extracts if source documentation has changed.
 
     Args:

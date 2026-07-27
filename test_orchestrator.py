@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test the orchestrator end-to-end.
+Test the harness end-to-end.
 
 This script demonstrates:
 1. Loading workspace configuration
@@ -17,7 +17,7 @@ import json
 # Add to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from orchestrator import KnowledgeEngine, Router, Planner
+from harness import KnowledgeEngine, Router, Planner
 
 # Load workspace config
 print("Loading workspace configuration...")
@@ -32,7 +32,7 @@ print(f"Factory root: {factory_root}")
 print()
 
 # Initialize components
-print("Initializing orchestrator components...")
+print("Initializing harness components...")
 knowledge_engine = KnowledgeEngine(factory_root / 'knowledge')
 router = Router(workspace_config)
 planner = Planner(knowledge_engine, router, workspace_config)
@@ -123,7 +123,7 @@ print("✅ Orchestrator test complete!")
 print("=" * 60)
 print()
 print("Next steps:")
-print("  1. The orchestrator successfully generated a task graph")
+print("  1. The harness successfully generated a task graph")
 print("  2. Knowledge was loaded from the knowledge pack")
 print("  3. Steps were generated based on issue type")
 print("  4. Ready to integrate with Claude Code for execution")

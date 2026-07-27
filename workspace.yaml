@@ -182,7 +182,7 @@ testing:
 
 # AI Factory configuration
 factory:
-  orchestrator:
+  harness:
     max_concurrent_tasks: 8
     retry_on_failure: 3
     timeout_minutes: 30

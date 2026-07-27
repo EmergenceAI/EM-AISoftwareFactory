@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dark Factory</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d1117;
+      --bg-2:        #161b22;
+      --bg-3:        #21262d;
+      --bg-4:        #30363d;
+      --border:      #30363d;
+      --text:        #e6edf3;
+      --text-muted:  #8b949e;
+      --text-dim:    #6e7681;
+      --green:       #238636;
+      --green-light: #3fb950;
+      --yellow:      #d29922;
+      --yellow-light:#e3b341;
+      --red:         #da3633;
+      --red-light:   #f85149;
+      --blue:        #1f6feb;
+      --blue-light:  #58a6ff;
+      --accent:      #238636;
+      --radius:      6px;
+      --radius-lg:   10px;
+      --font:        -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --font-mono:   "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* ── Header ───────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .header-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .header-stat .val {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .live-badge {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--green-light);
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green-light);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Circuit breaker banner ───────────────────────────────────────── */
+    .cb-banner {
+      display: none;
+      background: #3d1a1a;
+      border-bottom: 1px solid var(--red);
+      padding: 8px 20px;
+      font-size: 13px;
+      color: var(--red-light);
+      flex-shrink: 0;
+    }
+    .cb-banner.visible { display: flex; align-items: center; gap: 8px; }
+
+    /* ── Main content ─────────────────────────────────────────────────── */
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Panels ───────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-3);
+      flex-shrink: 0;
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .panel-body {
+      overflow-y: auto;
+      flex: 1;
+      padding: 8px;
+    }
+
+    /* ── Top section: Active + Gate Health ────────────────────────────── */
+    .top-section {
+      display: contents;
+    }
+    .active-panel {
+      grid-column: 1;
+      grid-row: 1;
+      margin: 12px 6px 6px 12px;
+      max-height: 260px;
+    }
+    .gate-panel {
+      grid-column: 2;
+      grid-row: 1;
+      margin: 12px 12px 6px 6px;
+      max-height: 260px;
+    }
+
+    /* ── Bottom section: Recent Runs ─────────────────────────────────── */
+    .bottom-section {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      margin: 6px 12px 12px 12px;
+    }
+    .runs-panel {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .runs-filter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .runs-filter select, .runs-filter input {
+      background: var(--bg-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .runs-filter select:focus, .runs-filter input:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+
+    /* ── Active Run Cards ─────────────────────────────────────────────── */
+    .active-run-card {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      margin-bottom: 6px;
+    }
+    .active-run-card:last-child { margin-bottom: 0; }
+    .arc-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .arc-issue {
+      font-weight: 600;
+      color: var(--blue-light);
+      font-size: 13px;
+    }
+    .arc-step {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .arc-time {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .progress-bar-wrap {
+      height: 6px;
+      background: var(--bg-4);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--green);
+      transition: width 0.5s ease;
+    }
+
+    /* ── Gate Health ──────────────────────────────────────────────────── */
+    .gate-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 4px;
+      border-radius: var(--radius);
+    }
+    .gate-row:hover { background: var(--bg-4); }
+    .gate-name {
+      width: 90px;
+      font-size: 12px;
+      color: var(--text);
+      flex-shrink: 0;
+      font-family: var(--font-mono);
+    }
+    .gate-bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-4);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .gate-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+    .gate-pct {
+      width: 36px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .gate-badge {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .badge-open   { background: #3d1a1a; color: var(--red-light); }
+    .badge-flaky  { background: #3d2e0a; color: var(--yellow-light); }
+    .badge-ok     { background: #0d2318; color: var(--green-light); }
+
+    /* ── Runs Table ───────────────────────────────────────────────────── */
+    .runs-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .runs-table thead th {
+      background: var(--bg-3);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .runs-table tbody tr {
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .runs-table tbody tr:hover { background: var(--bg-3); }
+    .runs-table tbody tr.selected { background: #1c2a1c; }
+    .runs-table tbody td {
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .run-icon { font-size: 15px; }
+    .run-id-cell {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .run-issue {
+      font-weight: 600;
+      color: var(--blue-light);
+    }
+    .run-repo {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .run-attempts {
+      text-align: center;
+      font-size: 12px;
+    }
+    .run-needs-review {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #3d2e0a;
+      color: var(--yellow-light);
+      font-weight: 500;
+    }
+    .run-active-badge {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #0d1f40;
+      color: var(--blue-light);
+      font-weight: 500;
+    }
+
+    /* ── Run Detail Panel ─────────────────────────────────────────────── */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+    .detail-overlay.open { display: flex; }
+    .detail-panel {
+      width: 480px;
+      max-width: 95vw;
+      height: 100vh;
+      background: var(--bg-2);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-3);
+      flex-shrink: 0;
+    }
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .detail-close:hover { color: var(--text); }
+    .detail-body {
+      overflow-y: auto;
+      flex: 1;
+      padding: 16px;
+    }
+
+    /* ── Timeline ─────────────────────────────────────────────────────── */
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .tl-item {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .tl-dot {
+      position: absolute;
+      left: -23px;
+      top: 3px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-2);
+      flex-shrink: 0;
+    }
+    .tl-dot-success  { background: var(--green); }
+    .tl-dot-fail     { background: var(--red); }
+    .tl-dot-running  { background: var(--blue); animation: pulse 1.5s infinite; }
+    .tl-dot-neutral  { background: var(--text-dim); }
+    .tl-content {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+    }
+    .tl-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .tl-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .tl-error {
+      font-size: 11px;
+      color: var(--red-light);
+      margin-top: 4px;
+      font-family: var(--font-mono);
+      word-break: break-all;
+    }
+
+    /* ── Summary cards ────────────────────────────────────────────────── */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .summary-card {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+    .sc-label { font-size: 11px; color: var(--text-muted); }
+    .sc-value { font-size: 18px; font-weight: 600; color: var(--text); margin-top: 2px; }
+
+    /* ── Empty state ──────────────────────────────────────────────────── */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+      font-size: 13px;
+      gap: 8px;
+    }
+    .empty-icon { font-size: 32px; }
+
+    /* ── Utilities ────────────────────────────────────────────────────── */
+    .text-green  { color: var(--green-light); }
+    .text-yellow { color: var(--yellow-light); }
+    .text-red    { color: var(--red-light); }
+    .text-blue   { color: var(--blue-light); }
+    .text-muted  { color: var(--text-muted); }
+    .nowrap      { white-space: nowrap; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="header">
+    <span class="header-title">&#x1F3ED; Dark Factory</span>
+    <div class="header-stats">
+      <span class="header-stat">Active: <span class="val" id="h-active">—</span></span>
+      <span class="header-stat">Queue: <span class="val" id="h-queue">—</span></span>
+      <span class="header-stat">Success (7d): <span class="val" id="h-success">—</span></span>
+      <span class="header-stat">Cost today: <span class="val" id="h-cost">—</span></span>
+      <span class="header-stat">Runs (7d): <span class="val" id="h-runs7d">—</span></span>
+    </div>
+    <span class="live-badge"><span class="live-dot"></span>Live</span>
+  </header>
+
+  <!-- ── Circuit breaker banner ───────────────────────────────────────── -->
+  <div class="cb-banner" id="cb-banner">
+    &#x26A0; Circuit breaker OPEN: <span id="cb-open-gates"></span>
+    — gate is disabled until manually reset.
+  </div>
+
+  <!-- ── Main content ─────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Active runs -->
+    <div class="panel active-panel">
+      <div class="panel-header">
+        <span class="panel-title">Active Runs</span>
+        <span id="active-count" class="text-muted" style="font-size:12px;">0</span>
+      </div>
+      <div class="panel-body" id="active-runs-body">
+        <div class="empty"><span class="empty-icon">&#x2705;</span>No active runs</div>
+      </div>
+    </div>
+
+    <!-- Gate health -->
+    <div class="panel gate-panel">
+      <div class="panel-header">
+        <span class="panel-title">Gate Health (7-day)</span>
+      </div>
+      <div class="panel-body" id="gate-health-body">
+        <div class="empty"><span class="empty-icon">&#x1F4CA;</span>No data</div>
+      </div>
+    </div>
+
+    <!-- Recent runs -->
+    <div class="bottom-section">
+      <div class="panel runs-panel">
+        <div class="panel-header">
+          <span class="panel-title">Recent Runs</span>
+          <div class="runs-filter">
+            <select id="filter-repo">
+              <option value="">All repos</option>
+            </select>
+            <select id="filter-outcome">
+              <option value="">All outcomes</option>
+              <option value="success">Success</option>
+              <option value="partial">Partial</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select id="filter-window">
+              <option value="all">All time</option>
+              <option value="1d">Today</option>
+              <option value="7d">7 days</option>
+              <option value="30d">30 days</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0; overflow-x:auto;">
+          <table class="runs-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Run ID</th>
+                <th>Issue</th>
+                <th>Repo</th>
+                <th>Duration</th>
+                <th>Gate Att.</th>
+                <th>Cost</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="runs-tbody">
+              <tr><td colspan="9"><div class="empty"><span>Loading...</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.main -->
+
+</div><!-- /.app -->
+
+<!-- ── Detail Overlay ────────────────────────────────────────────────── -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-panel">
+    <div class="detail-header">
+      <div>
+        <div style="font-weight:600; font-size:14px;" id="detail-title">Run Detail</div>
+        <div style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);" id="detail-run-id"></div>
+      </div>
+      <button class="detail-close" id="detail-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="detail-body" id="detail-body">
+      <div class="empty"><span>Loading...</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── API base ──────────────────────────────────────────────────────────
+const API = window.location.origin + '/api';
+
+// ── State ─────────────────────────────────────────────────────────────
+let _activeRunSubs = {};          // run_id → EventSource
+let _allRuns = [];                // full list from server
+let _selectedRunId = null;        // detail panel
+let _filterRepo = '';
+let _filterOutcome = '';
+let _filterWindow = 'all';
+let _knownRepos = new Set();
+
+// ── Utilities ─────────────────────────────────────────────────────────
+
+function fmtDuration(ms) {
+  if (!ms) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60), rs = s % 60;
+  if (m < 60) return m + 'm ' + rs + 's';
+  const h = Math.floor(m / 60), rm = m % 60;
+  return h + 'h ' + rm + 'm';
+}
+
+function fmtCost(usd) {
+  if (usd == null || usd === 0) return '—';
+  return '$' + usd.toFixed(2);
+}
+
+function fmtTs(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  } catch { return iso; }
+}
+
+function elapsedSince(iso) {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  return fmtDuration(ms);
+}
+
+function outcomeIcon(outcome) {
+  if (outcome === 'success') return '✅';
+  if (outcome === 'partial') return '⚠️';
+  return '❌';
+}
+
+function gateBarColor(pct) {
+  if (pct >= 0.85) return 'var(--green)';
+  if (pct >= 0.70) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function gateBadge(health) {
+  if (health.circuit_state === 'open') return '<span class="gate-badge badge-open">open</span>';
+  if (health.pass_rate < 0.70) return '<span class="gate-badge badge-flaky">flaky</span>';
+  return '';
+}
+
+function cutoffForWindow(w) {
+  if (w === 'all') return null;
+  const ms = {
+    '1d': 86400000,
+    '7d': 7 * 86400000,
+    '30d': 30 * 86400000,
+  }[w] || null;
+  return ms ? new Date(Date.now() - ms) : null;
+}
+
+function shortRunId(rid) {
+  // e.g. run_1722000000_abc12345 → run_…abc12345
+  const parts = (rid || '').split('_');
+  if (parts.length >= 3) return 'run_…' + parts[parts.length - 1];
+  return rid;
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+// ── Fetch helpers ──────────────────────────────────────────────────────
+
+async function apiFetch(path) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────
+
+async function fetchStats() {
+  const s = await apiFetch('/stats');
+  if (!s) return;
+  document.getElementById('h-success').textContent =
+    s.success_rate != null ? (s.success_rate * 100).toFixed(0) + '%' : '—';
+  document.getElementById('h-cost').textContent =
+    s.cost_today_usd != null ? '$' + s.cost_today_usd.toFixed(2) : '—';
+  document.getElementById('h-runs7d').textContent =
+    s.runs_7d != null ? s.runs_7d : '—';
+}
+
+// ── Runs ───────────────────────────────────────────────────────────────
+
+async function fetchRuns() {
+  const data = await apiFetch('/runs?limit=200');
+  if (!data) return;
+  _allRuns = data.runs || [];
+
+  // Update repo filter options
+  _allRuns.forEach(r => {
+    if (r.repository && !_knownRepos.has(r.repository)) {
+      _knownRepos.add(r.repository);
+      const opt = document.createElement('option');
+      opt.value = r.repository;
+      opt.textContent = r.repository;
+      document.getElementById('filter-repo').appendChild(opt);
+    }
+  });
+
+  // Separate active from historical
+  const active = _allRuns.filter(r => r.is_active);
+  const historical = _allRuns.filter(r => !r.is_active);
+
+  renderActiveRuns(active);
+  renderRecentRuns(historical);
+
+  // Update header active count
+  document.getElementById('h-active').textContent = active.length;
+
+  // Subscribe SSE for new active runs
+  active.forEach(r => {
+    if (!_activeRunSubs[r.run_id]) {
+      subscribeToRun(r.run_id);
+    }
+  });
+}
+
+async function fetchQueue() {
+  const q = await apiFetch('/queue');
+  if (!q) return;
+  const total = (q.active || []).length + (q.waiting || []).length;
+  document.getElementById('h-queue').textContent = total;
+}
+
+// ── Gate health ────────────────────────────────────────────────────────
+
+async function fetchGateHealth() {
+  const health = await apiFetch('/gates/health');
+  if (!health) return;
+  renderGateHealth(health);
+
+  // Check circuit breakers
+  const open = Object.entries(health)
+    .filter(([, h]) => h.circuit_state === 'open')
+    .map(([g]) => g);
+
+  const banner = document.getElementById('cb-banner');
+  if (open.length > 0) {
+    document.getElementById('cb-open-gates').textContent = open.join(', ');
+    banner.classList.add('visible');
+  } else {
+    banner.classList.remove('visible');
+  }
+}
+
+// ── Render: Active Runs ────────────────────────────────────────────────
+
+function renderActiveRuns(runs) {
+  const body = document.getElementById('active-runs-body');
+  document.getElementById('active-count').textContent = runs.length;
+
+  if (runs.length === 0) {
+    body.innerHTML = '<div class="empty"><span class="empty-icon">✅</span>No active runs</div>';
+    return;
+  }
+
+  body.innerHTML = runs.map(r => {
+    const step = r.current_step || r.status || 'running';
+    const elapsed = elapsedSince(r.started_at || r.timestamp);
+    const pct = _estimateProgress(r);
+    return `
+      <div class="active-run-card" data-run-id="${esc(r.run_id)}">
+        <div class="arc-top">
+          <span class="arc-issue">${esc(r.issue_key || '—')}</span>
+          <span class="arc-step text-muted">${esc(step)}</span>
+          <span class="arc-time">${elapsed}</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" style="width:${pct}%;"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  body.querySelectorAll('.active-run-card').forEach(card => {
+    card.addEventListener('click', () => openDetail(card.dataset.runId));
+  });
+}
+
+function _estimateProgress(run) {
+  const steps = ['research', 'plan', 'implement', 'gate', 'fix', 'create-pr'];
+  const step = (run.current_step || '').toLowerCase();
+  const idx = steps.findIndex(s => step.includes(s));
+  if (idx < 0) return 10;
+  return Math.round(((idx + 1) / steps.length) * 100);
+}
+
+function updateActiveRun(run_id, event) {
+  const card = document.querySelector(`.active-run-card[data-run-id="${CSS.escape(run_id)}"]`);
+  if (card && event.step) {
+    card.querySelector('.arc-step').textContent = event.step;
+    const pct = _estimateProgress({ current_step: event.step });
+    card.querySelector('.progress-bar').style.width = pct + '%';
+  }
+  // Refresh on run end
+  if (event.event === 'run_end' || event.event === 'error') {
+    if (_activeRunSubs[run_id]) {
+      _activeRunSubs[run_id].close();
+      delete _activeRunSubs[run_id];
+    }
+    setTimeout(refresh, 500);
+  }
+}
+
+// ── Render: Gate Health ────────────────────────────────────────────────
+
+function renderGateHealth(health) {
+  const body = document.getElementById('gate-health-body');
+  const gates = Object.values(health);
+
+  if (gates.length === 0) {
+    body.innerHTML = '<div class="empty"><span class="empty-icon">📊</span>No gate data yet</div>';
+    return;
+  }
+
+  body.innerHTML = gates.map(h => {
+    const pct = Math.round(h.pass_rate * 100);
+    const color = gateBarColor(h.pass_rate);
+    const badge = gateBadge(h);
+    const dur = h.avg_duration_ms ? (h.avg_duration_ms / 1000).toFixed(0) + 's' : '—';
+    return `
+      <div class="gate-row" title="${h.total_attempts} attempts, avg ${dur}">
+        <span class="gate-name">${esc(h.gate)}</span>
+        <div class="gate-bar-wrap">
+          <div class="gate-bar" style="width:${pct}%; background:${color};"></div>
+        </div>
+        <span class="gate-pct">${pct}%</span>
+        ${badge}
+      </div>`;
+  }).join('');
+}
+
+// ── Render: Recent Runs ────────────────────────────────────────────────
+
+function renderRecentRuns(runs) {
+  const tbody = document.getElementById('runs-tbody');
+
+  // Apply filters
+  const cutoff = cutoffForWindow(_filterWindow);
+  let filtered = runs.filter(r => {
+    if (_filterRepo && r.repository !== _filterRepo) return false;
+    if (_filterOutcome && r.overall_outcome !== _filterOutcome) return false;
+    if (cutoff && r.timestamp) {
+      if (new Date(r.timestamp) < cutoff) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><span>No runs match filters</span></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.slice(0, 100).map(r => {
+    const icon = outcomeIcon(r.overall_outcome);
+    const rid = shortRunId(r.run_id);
+    const dur = fmtDuration(r.duration_ms);
+    const cost = fmtCost(r.cost_usd);
+    const ts = fmtTs(r.timestamp);
+    const atts = r.gate_attempts != null ? r.gate_attempts : '—';
+    const selected = r.run_id === _selectedRunId ? 'selected' : '';
+    let statusBadge = '';
+    if (r.is_active) {
+      statusBadge = '<span class="run-active-badge">running</span>';
+    } else if (r.overall_outcome === 'partial') {
+      statusBadge = '<span class="run-needs-review">NEEDS-REVIEW</span>';
+    } else if (r.human_feedback === null && r.overall_outcome === 'success') {
+      statusBadge = '';
+    }
+    return `
+      <tr class="${selected}" data-run-id="${esc(r.run_id)}">
+        <td class="run-icon">${icon}</td>
+        <td class="run-id-cell nowrap">${esc(rid)}</td>
+        <td class="run-issue nowrap">${esc(r.issue_key || '—')}</td>
+        <td class="run-repo">${esc(r.repository || '—')}</td>
+        <td class="nowrap">${dur}</td>
+        <td class="run-attempts">${atts}</td>
+        <td class="nowrap">${cost}</td>
+        <td class="nowrap text-muted" style="font-size:12px;">${ts}</td>
+        <td>${statusBadge}</td>
+      </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('tr[data-run-id]').forEach(row => {
+    row.addEventListener('click', () => openDetail(row.dataset.runId));
+  });
+}
+
+// ── SSE subscription for active run ───────────────────────────────────
+
+function subscribeToRun(run_id) {
+  if (_activeRunSubs[run_id]) return;
+  const url = window.location.origin + '/api/runs/' + encodeURIComponent(run_id) + '/events';
+  const es = new EventSource(url);
+  _activeRunSubs[run_id] = es;
+
+  es.onmessage = (e) => {
+    try {
+      const event = JSON.parse(e.data);
+      updateActiveRun(run_id, event);
+    } catch { /* ignore parse errors */ }
+  };
+
+  es.onerror = () => {
+    es.close();
+    delete _activeRunSubs[run_id];
+  };
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────
+
+async function openDetail(run_id) {
+  _selectedRunId = run_id;
+
+  // Highlight row
+  document.querySelectorAll('.runs-table tr.selected').forEach(r => r.classList.remove('selected'));
+  document.querySelector(`.runs-table tr[data-run-id="${CSS.escape(run_id)}"]`)?.classList.add('selected');
+  document.querySelectorAll(`.active-run-card[data-run-id="${CSS.escape(run_id)}"]`).forEach(c => c.style.outline = '1px solid var(--blue)');
+
+  // Open overlay
+  const overlay = document.getElementById('detail-overlay');
+  overlay.classList.add('open');
+  document.getElementById('detail-run-id').textContent = run_id;
+  document.getElementById('detail-title').textContent = 'Loading…';
+  document.getElementById('detail-body').innerHTML = '<div class="empty"><span>Loading…</span></div>';
+
+  const data = await apiFetch('/runs/' + encodeURIComponent(run_id));
+  if (!data) {
+    document.getElementById('detail-body').innerHTML = '<div class="empty"><span class="text-red">Failed to load run</span></div>';
+    return;
+  }
+
+  renderRunDetail(data);
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+  _selectedRunId = null;
+  document.querySelectorAll('.runs-table tr.selected').forEach(r => r.classList.remove('selected'));
+}
+
+function renderRunDetail(data) {
+  const s = data.summary || {};
+  document.getElementById('detail-title').textContent =
+    (s.issue_key || data.run_id) + ' — ' + (s.repository || '');
+
+  const events = data.events || [];
+  const outcome = s.overall_outcome || 'unknown';
+  const icon = outcomeIcon(outcome);
+  const dur = fmtDuration(s.duration_ms);
+
+  // Summary cards
+  const gateBreakdown = s.gate_breakdown || {};
+  const gateRows = Object.entries(gateBreakdown).map(([gate, info]) => {
+    const pass = info.final === 'pass';
+    return `<span style="margin-right:8px;">${pass ? '✅' : '❌'} ${gate} (${info.attempts} att.)</span>`;
+  }).join('');
+
+  let html = `
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="sc-label">Outcome</div>
+        <div class="sc-value">${icon} ${outcome}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Duration</div>
+        <div class="sc-value">${dur}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Gate Attempts</div>
+        <div class="sc-value">${s.gate_attempts != null ? s.gate_attempts : '—'}</div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-label">Reward</div>
+        <div class="sc-value">${s.reward != null ? s.reward.toFixed(2) : '—'}</div>
+      </div>
+    </div>`;
+
+  if (gateRows) {
+    html += `
+      <div style="margin-bottom:16px; font-size:12px;">
+        <div style="color:var(--text-muted); margin-bottom:6px; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Gates</div>
+        ${gateRows}
+      </div>`;
+  }
+
+  if (s.pr_url) {
+    html += `
+      <div style="margin-bottom:16px;">
+        <a href="${esc(s.pr_url)}" target="_blank"
+           style="color:var(--blue-light); font-size:13px; text-decoration:none;">
+          &#x1F517; View Pull Request
+        </a>
+      </div>`;
+  }
+
+  // Timeline
+  html += '<div style="color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:10px;">Timeline</div>';
+  html += '<div class="timeline">';
+
+  events.forEach(ev => {
+    const evType = ev.event;
+    let dotClass = 'tl-dot-neutral';
+    let title = evType;
+    let meta = '';
+    let errorHtml = '';
+
+    if (evType === 'run_start') {
+      dotClass = 'tl-dot-running';
+      title = 'Run started';
+      meta = fmtTs(ev.timestamp) + ' · ' + esc(ev.repository || '');
+    } else if (evType === 'step') {
+      dotClass = ev.success ? 'tl-dot-success' : 'tl-dot-fail';
+      title = esc(ev.step);
+      meta = fmtDuration(ev.duration_ms);
+      if (ev.error) errorHtml = `<div class="tl-error">${esc(ev.error.slice(0, 200))}</div>`;
+    } else if (evType === 'gate') {
+      dotClass = ev.passed ? 'tl-dot-success' : 'tl-dot-fail';
+      title = 'Gate: ' + esc(ev.gate) + ' (attempt ' + ev.attempt + ')';
+      meta = (ev.passed ? '✅ passed' : '❌ failed') + ' · ' + fmtDuration(ev.duration_ms);
+      if (ev.error) errorHtml = `<div class="tl-error">${esc(ev.error.slice(0, 200))}</div>`;
+    } else if (evType === 'gate_loop_complete') {
+      dotClass = ev.passed ? 'tl-dot-success' : 'tl-dot-fail';
+      title = 'Gate loop complete';
+      meta = (ev.passed ? '✅ all passed' : '❌ failures remain') + ' after ' + ev.attempts + ' attempt(s)';
+    } else if (evType === 'error') {
+      dotClass = 'tl-dot-fail';
+      title = 'Error';
+      errorHtml = `<div class="tl-error">${esc((ev.error || '').slice(0, 300))}</div>`;
+    } else if (evType === 'run_end') {
+      dotClass = outcome === 'success' ? 'tl-dot-success' : (outcome === 'partial' ? 'tl-dot-neutral' : 'tl-dot-fail');
+      title = 'Run ended · ' + outcomeIcon(ev.overall_outcome || outcome) + ' ' + (ev.overall_outcome || outcome);
+      meta = 'Total: ' + fmtDuration(ev.duration_ms) + ' · Reward: ' + (ev.reward != null ? ev.reward.toFixed(2) : '—');
+    }
+
+    html += `
+      <div class="tl-item">
+        <div class="tl-dot ${dotClass}"></div>
+        <div class="tl-content">
+          <div class="tl-title">${title}</div>
+          ${meta ? `<div class="tl-meta">${meta}</div>` : ''}
+          ${errorHtml}
+        </div>
+      </div>`;
+  });
+
+  if (events.length === 0) {
+    html += '<div class="empty"><span>No events yet</span></div>';
+  }
+
+  html += '</div>'; // .timeline
+  document.getElementById('detail-body').innerHTML = html;
+}
+
+// ── Filter handlers ────────────────────────────────────────────────────
+
+document.getElementById('filter-repo').addEventListener('change', function() {
+  _filterRepo = this.value;
+  renderRecentRuns(_allRuns.filter(r => !r.is_active));
+});
+
+document.getElementById('filter-outcome').addEventListener('change', function() {
+  _filterOutcome = this.value;
+  renderRecentRuns(_allRuns.filter(r => !r.is_active));
+});
+
+document.getElementById('filter-window').addEventListener('change', function() {
+  _filterWindow = this.value;
+  renderRecentRuns(_allRuns.filter(r => !r.is_active));
+});
+
+// ── Detail overlay close ───────────────────────────────────────────────
+
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+document.getElementById('detail-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeDetail();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeDetail();
+});
+
+// ── Main refresh loop ──────────────────────────────────────────────────
+
+async function refresh() {
+  await Promise.all([fetchStats(), fetchRuns(), fetchQueue()]);
+}
+
+async function refreshGates() {
+  await fetchGateHealth();
+}
+
+// Initial load
+refresh();
+refreshGates();
+
+// Polling
+setInterval(refresh, 5000);
+setInterval(refreshGates, 30000);
+</script>
+</body>
+</html>

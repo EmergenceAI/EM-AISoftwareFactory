@@ -1,7 +1,7 @@
 """
 Knowledge Pack Sync Module
 
-Automatically syncs knowledge packs from repositories before orchestrator runs.
+Automatically syncs knowledge packs from repositories before harness runs.
 Only re-extracts if source documentation has changed.
 """
 
