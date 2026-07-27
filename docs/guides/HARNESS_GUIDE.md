@@ -1,4 +1,4 @@
-# Orchestrator Guide
+# Harness Guide
 
 **Complete guide to workspace-level orchestration with knowledge injection.**
 
@@ -21,10 +21,10 @@
 
 ```bash
 # Test routing
-python3 -m orchestrator test SEMI-1413
+python3 -m harness test SEMI-1413
 
 # Generate instructions
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 
 # Follow the printed instructions in Claude Code
 ```
@@ -42,7 +42,7 @@ python3 -m orchestrator implement SEMI-1413
 cd ~/Documents/Development/em-semi
 
 # 2. Start Claude Code
-claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins/em-software-factory
+claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory//Users/malamunisamy/Documents/Development/EM-AISoftwareFactory
 
 # 3. Run skill
 /autonomous-implement SEMI-1413
@@ -50,7 +50,7 @@ claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins
 
 **Pros:**
 - Simple, direct
-- Fast (no orchestrator overhead)
+- Fast (no harness overhead)
 
 **Cons:**
 - No automatic knowledge injection
@@ -65,7 +65,7 @@ claude --plugin-dir ~/Documents/Development/EM-AISoftwareFactory/.claude/plugins
 
 ```bash
 # From workspace root
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 
 # Output:
 #  Routed SEMI-1413 → semi
@@ -73,7 +73,7 @@ python3 -m orchestrator implement SEMI-1413
 # 
 # To execute:
 #   1. cd ~/Documents/Development/EM-AISoftwareFactory
-#   2. claude --plugin-dir .claude/plugins/em-software-factory
+#   2. claude --plugin-dir /Users/malamunisamy/Documents/Development/EM-AISoftwareFactory
 #   3. cd ~/Documents/Development/em-semi
 #   4. /autonomous-implement SEMI-1413 --context-file /tmp/knowledge_context_xyz.md
 
@@ -99,7 +99,7 @@ python3 -m orchestrator implement SEMI-1413
 # Example: ARCH-500 needs changes in runtime AND runtime-ui
 
 # Step 1: Check which repos
-python3 -m orchestrator multi-repo ARCH-500
+python3 -m harness multi-repo ARCH-500
 
 # Output:
 #  Routed ARCH-500 to repositories: runtime, runtime-ui
@@ -109,8 +109,8 @@ python3 -m orchestrator multi-repo ARCH-500
 #   2. runtime-ui (depends on runtime)
 # 
 # Instructions generated:
-#   /tmp/orchestrator_instructions_ARCH-500-runtime.sh
-#   /tmp/orchestrator_instructions_ARCH-500-runtime-ui.sh
+#   /tmp/harness_instructions_ARCH-500-runtime.sh
+#   /tmp/harness_instructions_ARCH-500-runtime-ui.sh
 
 # Step 2: Execute in order
 # (Follow instructions for runtime first, then runtime-ui)
@@ -123,7 +123,7 @@ python3 -m orchestrator multi-repo ARCH-500
 ```bash
 # Implement 5 issues across 3 repositories
 
-python3 -m orchestrator multi-repo SEMI-1413 SEMI-1414 T2D-890 RT-567 UI-123
+python3 -m harness multi-repo SEMI-1413 SEMI-1414 T2D-890 RT-567 UI-123
 
 # Output:
 #  Routing summary:
@@ -250,7 +250,7 @@ The AI reads this context and:
 ./sync_knowledge.sh
 
 # Automatic sync
-# Runs before orchestrator implement/multi-repo commands
+# Runs before harness implement/multi-repo commands
 
 # Check what was extracted
 ls -la knowledge/repositories/semi/
@@ -431,7 +431,7 @@ jira:
 ./sync_knowledge.sh
 
 # 3. Test routing
-python3 -m orchestrator test NEWREPO-123
+python3 -m harness test NEWREPO-123
 
 # Should output:
 #  Routed NEWREPO-123 → new-repo
@@ -502,11 +502,11 @@ When implementing analytics features:
 
 ```bash
 # Normally routes based on Jira component
-python3 -m orchestrator implement SEMI-1413
+python3 -m harness implement SEMI-1413
 # Routes to: semi
 
 # Force different repository (future enhancement)
-python3 -m orchestrator implement SEMI-1413 --repo runtime
+python3 -m harness implement SEMI-1413 --repo runtime
 # Routes to: runtime (override)
 ```
 
@@ -531,13 +531,13 @@ grep -r "event sourcing" knowledge/repositories/semi/
 
 ```bash
 # Test routing without implementation
-python3 -m orchestrator test SEMI-1413
+python3 -m harness test SEMI-1413
 
 # Verbose output
-python3 -m orchestrator test SEMI-1413 --verbose
+python3 -m harness test SEMI-1413 --verbose
 
 # Test multiple
-python3 -m orchestrator test SEMI-1413 T2D-890 RT-567
+python3 -m harness test SEMI-1413 T2D-890 RT-567
 
 # Output shows routing decision for each
 ```
@@ -558,7 +558,7 @@ vim workspace.yaml
 # Add: YourComponent: your-repo
 
 # Test
-python3 -m orchestrator test YOUR-123
+python3 -m harness test YOUR-123
 ```
 
 ### "No knowledge found"
@@ -579,8 +579,8 @@ ls -la ~/Documents/Development/em-your-repo/README.md
 
 ```bash
 # The context file is temporary
-# Run the orchestrator implement command again
-python3 -m orchestrator implement SEMI-1413
+# Run the harness implement command again
+python3 -m harness implement SEMI-1413
 
 # It will create a new context file
 # Use it immediately (files may be cleaned up)
@@ -607,9 +607,9 @@ ls -la ~/Documents/Development/
 | Scenario | Command | Knowledge | Routing |
 |----------|---------|-----------|---------|
 | **Quick single-repo** | `cd repo && /autonomous-implement` |  No | Manual (you cd) |
-| **Single-repo + knowledge** | `orchestrator implement` |  Yes | Auto |
-| **Multi-repo** | `orchestrator multi-repo` |  Yes | Auto |
-| **Batch** | `orchestrator multi-repo ISSUE1 ISSUE2...` |  Yes | Auto |
+| **Single-repo + knowledge** | `harness implement` |  Yes | Auto |
+| **Multi-repo** | `harness multi-repo` |  Yes | Auto |
+| **Batch** | `harness multi-repo ISSUE1 ISSUE2...` |  Yes | Auto |
 
 ### Knowledge Injection
 
@@ -622,4 +622,4 @@ ls -la ~/Documents/Development/
 
 ---
 
-**The orchestrator transforms "which repo?" and "what patterns?" into "just implement it correctly."** 
+**The harness transforms "which repo?" and "what patterns?" into "just implement it correctly."** 

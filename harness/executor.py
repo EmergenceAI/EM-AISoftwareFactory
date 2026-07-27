@@ -16,8 +16,6 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
 import subprocess
-import json
-import os
 import tempfile
 import time
 
@@ -259,36 +257,28 @@ class Executor:
         Returns:
             Dictionary with execution results
         """
-        # Create knowledge context file
+        # Create knowledge context file inside repo_path so subprocess claude can read it
         context_file = self._create_knowledge_context_file(
             knowledge_context=knowledge_context,
             foundations_standards=foundations_standards,
-            repo_config=repo_config
+            repo_config=repo_config,
+            repo_path=repo_path,
         )
 
-        try:
-            # Method 1: Use Skill tool directly (if available in this context)
-            # This is the ideal approach when running inside Claude Code
-            if self._is_running_in_claude_code():
-                return self._invoke_skill_via_tool(issue_key, context_file, repo_path)
-
-            # Method 2: Subprocess call to claude CLI
-            # This works when orchestrator runs as standalone script
-            return self._invoke_skill_via_subprocess(issue_key, context_file, repo_path)
-
-        finally:
-            # Clean up temp file
-            if context_file.exists():
-                context_file.unlink()
+        return self._invoke_skill_via_subprocess(issue_key, context_file, repo_path)
 
     def _create_knowledge_context_file(
         self,
         knowledge_context: Dict[str, str],
         foundations_standards: str,
-        repo_config: Dict
+        repo_config: Dict,
+        repo_path: Path,
     ) -> Path:
         """
-        Create temporary file with knowledge context for skill.
+        Create knowledge context file inside the target repo directory.
+
+        Placing it inside repo_path ensures the subprocess claude session can
+        read it without an out-of-allowed-directory permission prompt.
 
         Args:
             knowledge_context: Repository knowledge
@@ -299,7 +289,7 @@ class Executor:
             Path to temporary context file
         """
         context = f"""# Repository Knowledge Context
-# This context is automatically injected by the orchestrator
+# This context is automatically injected by the harness
 
 ## Repository: {repo_config['name']}
 **Display Name:** {repo_config.get('display_name', repo_config['name'])}
@@ -349,36 +339,12 @@ When implementing this issue:
 6. Run gitleaks to ensure no secrets
 """
 
-        # Write to temporary file
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.md',
-            prefix='knowledge_context_',
-            delete=False
-        ) as f:
-            f.write(context)
-            return Path(f.name)
-
-    def _invoke_skill_via_tool(
-        self,
-        issue_key: str,
-        context_file: Path,
-        repo_path: Path
-    ) -> Dict:
-        """
-        Invoke skill using the Skill tool (when running in Claude Code).
-
-        Args:
-            issue_key: Jira issue key
-            context_file: Path to knowledge context file
-            repo_path: Repository path
-
-        Returns:
-            Execution result dictionary
-        """
-        # This would use the Skill tool if we're running inside Claude Code
-        # For now, we'll use subprocess as fallback
-        return self._invoke_skill_via_subprocess(issue_key, context_file, repo_path)
+        # Write into the repo dir so the subprocess claude session can read it
+        # without hitting an out-of-allowed-directory permission prompt.
+        # _invoke_skill_via_subprocess deletes it after claude exits.
+        context_file = repo_path / f'.knowledge_context_{repo_config["name"]}.md'
+        context_file.write_text(context)
+        return context_file
 
     def _invoke_skill_via_subprocess(
         self,
@@ -387,94 +353,79 @@ When implementing this issue:
         repo_path: Path
     ) -> Dict:
         """
-        Create instructions file for manual skill invocation.
+        Invoke /autonomous-implement skill by shelling out to the claude CLI.
 
-        When orchestrator runs standalone (not in Claude Code), it cannot
-        directly invoke skills. Instead, it:
-        1. Prepares knowledge context
-        2. Creates instruction file
-        3. Prints commands for user to run in Claude Code
+        Runs claude headlessly (-p) with the factory plugin dir so all skills
+        are available, then passes the skill invocation as the initial prompt.
 
         Args:
             issue_key: Jira issue key
-            context_file: Path to knowledge context file
-            repo_path: Repository path
+            context_file: Path to knowledge context file (persists until skill completes)
+            repo_path: Repository path (used as cwd for the claude process)
 
         Returns:
-            Execution result dictionary with instructions
+            Execution result dictionary
         """
-        # Create instructions file
-        instructions_file = Path(tempfile.gettempdir()) / f"orchestrator_instructions_{issue_key}.sh"
+        prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
 
-        instructions = f"""#!/bin/bash
-# Orchestrator Execution Instructions for {issue_key}
-# Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}
+        cmd = [
+            'claude',
+            '--plugin-dir', str(self.factory_root),
+            '--dangerously-skip-permissions',
+            '-p', prompt,
+        ]
 
-# Repository: {repo_path}
-# Knowledge Context: {context_file}
+        print(f"\n🚀 Launching claude to implement {issue_key} in {repo_path.name}...")
+        print(f"   Plugin: {self.factory_root}")
+        print(f"   Context: {context_file}\n")
 
-echo "============================================================"
-echo "Orchestrator: Ready to implement {issue_key}"
-echo "============================================================"
-echo ""
-echo "Repository: {repo_path}"
-echo "Knowledge context prepared at: {context_file}"
-echo ""
-echo "To execute this implementation, run:"
-echo ""
-echo "  cd {repo_path}"
-echo "  claude --plugin-dir {self.factory_root}/.claude/plugins/em-software-factory"
-echo ""
-echo "Then in Claude Code, run:"
-echo ""
-echo "  /autonomous-implement {issue_key} --context-file {context_file}"
-echo ""
-echo "============================================================"
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(repo_path),
+                text=True,
+                timeout=3600,  # 1-hour ceiling for large issues
+            )
 
-# For automated execution in Claude Code environment:
-# cd {repo_path}
-# /autonomous-implement {issue_key} --context-file {context_file}
-"""
+            success = result.returncode == 0
 
-        with open(instructions_file, 'w') as f:
-            f.write(instructions)
+            if not success:
+                return {
+                    'success': False,
+                    'error': f'claude exited with code {result.returncode}',
+                    'pr_url': None,
+                    'branch_name': None,
+                    'output': '',
+                }
 
-        instructions_file.chmod(0o755)  # Make executable
+            return {
+                'success': True,
+                'output': 'autonomous-implement completed',
+                'pr_url': None,
+                'branch_name': None,
+                'error': None,
+            }
 
-        # Print instructions to console
-        print("\n" + "="*60)
-        print(f"📋 Implementation Instructions for {issue_key}")
-        print("="*60)
-        print(f"\n✅ Knowledge context prepared: {context_file}")
-        print(f"✅ Repository: {repo_path}")
-        print(f"\n📝 Instructions saved to: {instructions_file}")
-        print("\n" + "-"*60)
-        print("To execute, run these commands:")
-        print("-"*60)
-        print(f"\n1. Start Claude Code with plugin:")
-        print(f"   cd {self.factory_root}")
-        print(f"   claude --plugin-dir .claude/plugins/em-software-factory")
-        print(f"\n2. Navigate to repository:")
-        print(f"   cd {repo_path}")
-        print(f"\n3. Run autonomous-implement:")
-        print(f"   /autonomous-implement {issue_key} --context-file {context_file}")
-        print("\n" + "="*60 + "\n")
-
-        return {
-            'success': True,
-            'output': f'Instructions created at {instructions_file}',
-            'pr_url': None,
-            'branch_name': None,
-            'error': None,
-            'instructions_file': str(instructions_file),
-            'context_file': str(context_file),
-            'message': 'Manual execution required - see instructions above'
-        }
-
-    def _is_running_in_claude_code(self) -> bool:
-        """Check if running inside Claude Code environment."""
-        # Simple heuristic - check for Claude Code environment markers
-        return 'CLAUDE_CODE' in os.environ or 'ANTHROPIC_API_KEY' in os.environ
+        except FileNotFoundError:
+            return {
+                'success': False,
+                'error': 'claude CLI not found — ensure it is on PATH (brew install claude-code)',
+                'pr_url': None,
+                'branch_name': None,
+                'output': '',
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                'success': False,
+                'error': 'claude timed out after 1 hour',
+                'pr_url': None,
+                'branch_name': None,
+                'output': '',
+            }
+        finally:
+            # Clean up context file now that claude has finished
+            if context_file.exists():
+                context_file.unlink()
 
     def _get_repo_config(self, repository: str) -> Dict:
         """Get repository configuration from workspace config."""

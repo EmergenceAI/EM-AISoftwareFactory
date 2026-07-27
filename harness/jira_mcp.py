@@ -2,7 +2,7 @@
 Jira Integration for Orchestrator
 
 Provides functions to extract Jira component and route to correct repository.
-The orchestrator delegates actual Jira fetching to skills (which use MCP).
+The harness delegates actual Jira fetching to skills (which use MCP).
 """
 
 from typing import Dict, Optional
@@ -12,7 +12,7 @@ def get_issue_component(issue_key: str) -> Optional[str]:
     """
     Infer Jira component from issue key prefix for routing.
 
-    The orchestrator doesn't fetch full issue data - it just needs to know
+    The harness doesn't fetch full issue data - it just needs to know
     which repository to route to. The actual issue fetching happens in skills
     via MCP (mcp__atlassian__jira_get_issue).
 
@@ -67,7 +67,7 @@ def get_repository_for_issue(issue_key: str, component_mapping: Dict[str, str]) 
 
 
 # Integration note:
-# The orchestrator's job is to route issues to the correct repository
+# The harness's job is to route issues to the correct repository
 # and prepare knowledge context. The actual Jira data fetching happens
 # in the skills themselves via MCP:
 #
@@ -77,5 +77,5 @@ def get_repository_for_issue(issue_key: str, component_mapping: Dict[str, str]) 
 #     fields: ['summary', 'description', 'issuetype', 'status']
 #   })
 #
-# This separation keeps the orchestrator lightweight and lets skills
+# This separation keeps the harness lightweight and lets skills
 # handle the full Jira integration with all available MCP tools.

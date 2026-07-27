@@ -2,7 +2,7 @@
 Knowledge Engine - Retrieves semantic knowledge for planning and implementation.
 
 The knowledge engine loads architecture, patterns, conventions, and decisions
-from centralized knowledge packs and provides them to the orchestrator.
+from centralized knowledge packs and provides them to the harness.
 """
 
 from pathlib import Path
