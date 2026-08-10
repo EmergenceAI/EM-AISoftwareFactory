@@ -675,6 +675,10 @@ def cmd_runs(args):
 
 def main():
     """Main CLI entry point."""
+    # Shorthand: python -m harness SEMI-1665  →  python -m harness implement SEMI-1665
+    if len(sys.argv) > 1 and not sys.argv[1].startswith('-') and '-' in sys.argv[1] and sys.argv[1].upper() == sys.argv[1]:
+        sys.argv.insert(1, 'implement')
+
     parser = argparse.ArgumentParser(
         description='AI Software Factory - Workspace-level harness',
         formatter_class=argparse.RawDescriptionHelpFormatter,
