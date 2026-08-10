@@ -434,6 +434,17 @@ class Executor:
                 error="claude timed out after 2 hours", duration_seconds=time.time() - start_time,
             )
         except Exception as exc:
+            if 'monitor' in dir() and monitor is not None:
+                try:
+                    monitor.stop()
+                except Exception:
+                    pass
+            if 'context_file' in dir():
+                try:
+                    if context_file.exists():
+                        context_file.unlink()
+                except Exception:
+                    pass
             return TaskResult(
                 repository=repository, issue_key=issue_key, success=False,
                 error=str(exc), duration_seconds=time.time() - start_time,

@@ -21,7 +21,7 @@ Commands
 
 Usage examples
 --------------
-  python -m harness implement ABI-123 --harness
+  python -m harness implement ABI-123
   python -m harness watch ABI-123
   python -m harness queue
   python -m harness cancel ABI-123
@@ -93,7 +93,8 @@ def cmd_implement(args):
 
     print(f"\n{'='*60}")
     print(f"AI Software Factory - Workspace Harness")
-    mode = "harness" if getattr(args, 'harness', False) else "skill"
+    skill_mode = getattr(args, 'skill', False)
+    mode = "skill" if skill_mode else "harness"
     print(f"Mode: {mode}")
     print(f"{'='*60}\n")
 
@@ -104,7 +105,7 @@ def cmd_implement(args):
     repository = _resolve_repository(args, workspace_config)
     print()
 
-    if getattr(args, 'harness', False):
+    if not skill_mode:
         # ── Harness mode: step-by-step loop with provenance ──────────────
         harness = Harness(
             factory_root,
@@ -177,7 +178,7 @@ def cmd_provenance(args):
     prov_dir = factory_root / "provenance"
 
     if not prov_dir.exists():
-        print("No provenance data found. Run with --harness first.")
+        print("No provenance data found. Harness mode is the default; no --harness flag needed.")
         sys.exit(1)
 
     logger = ProvenanceLogger(prov_dir)
@@ -679,21 +680,20 @@ Examples:
         help='Explicit repository name (default: auto-route)'
     )
     implement.add_argument(
-        '--harness',
+        '--skill',
         action='store_true',
         default=False,
         help=(
-            'Use harness mode: call each skill individually, run gate loop '
-            'deterministically, log every step to provenance/. '
-            'Default: delegate everything to /autonomous-implement.'
+            'Use skill mode: delegate everything to /autonomous-implement '
+            'with no provenance logging. Default: harness mode.'
         ),
     )
     implement.add_argument(
         '--max-gate-attempts',
         type=int,
-        default=3,
+        default=2,
         metavar='N',
-        help='Max gate loop retries in harness mode (default: 3)',
+        help='Max gate loop retries in harness mode (default: 2)',
     )
     implement.add_argument(
         '--auto-merge',

@@ -576,7 +576,6 @@ async def spawn_run(body: dict) -> dict:
     cmd = [
         sys.executable, "-m", "harness.cli", "implement", issue_key,
         "--repo", repository,
-        "--harness",
     ]
 
     try:
@@ -593,6 +592,32 @@ async def spawn_run(body: dict) -> dict:
         raise HTTPException(status_code=500, detail=f"Failed to spawn: {exc}") from exc
 
     return {"run_id": run_id, "issue_key": issue_key, "repository": repository, "pid": proc.pid}
+
+
+@app.post("/api/runs/{run_id}/register", tags=["runs"], status_code=202)
+async def api_register_run(run_id: str, body: dict) -> dict:
+    """Register an externally-launched harness run so it appears in the dashboard."""
+    register_run(
+        run_id,
+        issue_key=body.get("issue_key", ""),
+        repository=body.get("repository", ""),
+        pid=body.get("pid"),
+    )
+    return {"run_id": run_id, "status": "registered"}
+
+
+@app.patch("/api/runs/{run_id}", tags=["runs"])
+async def api_update_run(run_id: str, body: dict) -> dict:
+    """Update metadata for an active run (e.g., current_step)."""
+    update_run(run_id, **body)
+    return {"run_id": run_id, "updated": list(body.keys())}
+
+
+@app.post("/api/runs/{run_id}/complete", tags=["runs"])
+async def api_complete_run(run_id: str, body: dict) -> dict:
+    """Mark a run complete and remove it from active tracking."""
+    complete_run(run_id, outcome=body.get("outcome", "unknown"))
+    return {"run_id": run_id, "status": "completed"}
 
 
 @app.post("/api/runs/{run_id}/cancel", tags=["runs"])
