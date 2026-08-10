@@ -18,6 +18,158 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+import threading
+import json
+
+from .provenance import ProvenanceLogger, StepRecord, GateRecord
+from .watchdog import Watchdog
+from .checkpoint import Checkpoint
+from .circuit_breaker import CircuitBreaker
+
+
+class EventMonitor:
+    """
+    Tail-reads provenance-events.jsonl written by the skill.
+    Dispatches each event to provenance, watchdog, checkpoint, circuit breaker, server.
+    Runs in a background daemon thread — call start(), then wait_for_complete().
+    """
+
+    def __init__(
+        self,
+        run_id: str,
+        issue_key: str,
+        repo_path: Path,
+        provenance: ProvenanceLogger,
+        watchdog: Watchdog,
+        checkpoint: Checkpoint,
+        circuit_breaker: CircuitBreaker,
+        server_call,        # callable matching _server_call signature
+    ):
+        self.run_id = run_id
+        self.issue_key = issue_key
+        self.repo_path = repo_path
+        self.provenance = provenance
+        self.watchdog = watchdog
+        self.checkpoint = checkpoint
+        self.circuit_breaker = circuit_breaker
+        self._server_call = server_call
+        self._thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
+        self._complete_event = threading.Event()
+        self._final_event: Optional[dict] = None   # run_complete payload
+        self._step_starts: dict = {}               # step → start time (float)
+
+    def start(self, events_path: Path) -> None:
+        """Start background monitoring of events_path."""
+        self._thread = threading.Thread(
+            target=self._monitor, args=(events_path,), daemon=True
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Signal the monitor to stop after current line."""
+        self._stop_event.set()
+
+    def wait_for_complete(self, timeout: float = 7200.0) -> Optional[dict]:
+        """
+        Block until run_complete event is seen or timeout elapses.
+        Returns the run_complete payload dict, or None on timeout.
+        """
+        self._complete_event.wait(timeout=timeout)
+        return self._final_event
+
+    def _monitor(self, events_path: Path) -> None:
+        """Tail-read the events file. One JSON line per event."""
+        # Wait up to 60s for the file to appear (skill creates it on first write)
+        deadline = time.time() + 60
+        while not events_path.exists() and time.time() < deadline:
+            if self._stop_event.is_set():
+                return
+            time.sleep(0.5)
+
+        if not events_path.exists():
+            return   # skill never started writing — nothing to do
+
+        position = 0
+        while not self._stop_event.is_set():
+            try:
+                with open(events_path) as f:
+                    f.seek(position)
+                    for raw_line in f:
+                        line = raw_line.strip()
+                        if line:
+                            try:
+                                event = json.loads(line)
+                                self._dispatch(event)
+                            except json.JSONDecodeError:
+                                pass   # partial write — will retry next poll
+                    position = f.tell()
+            except OSError:
+                pass
+            time.sleep(0.5)
+
+    def _dispatch(self, event: dict) -> None:
+        """Route a parsed event to the correct handler."""
+        ev = event.get("event")
+        now = time.time()
+
+        if ev == "step_start":
+            step = event["step"]
+            self._step_starts[step] = now
+            self.watchdog.set_step(step)
+            self._server_call("update_run", self.run_id, current_step=step)
+            print(f"   ▶  {step}")
+
+        elif ev == "step_end":
+            step = event["step"]
+            success = event.get("success", False)
+            t0 = self._step_starts.get(step, now)
+            duration_ms = (now - t0) * 1000
+            record = StepRecord(
+                step=step,
+                success=success,
+                duration_ms=duration_ms,
+                output_preview=event.get("output_preview", ""),
+                error=event.get("error"),
+            )
+            self.provenance.log_step(self.run_id, record)
+            completed = self.checkpoint.completed_steps() + [step]
+            self.checkpoint.write(self.run_id, self.issue_key, completed)
+            icon = "✅" if success else "❌"
+            print(f"   {icon}  {step}")
+
+        elif ev == "gate":
+            gate = event["gate"]
+            passed = event.get("passed", False)
+            attempt = event.get("attempt", 1)
+            outputs = event.get("outputs", {})
+            t0 = self._step_starts.get(f"gate.{gate}", now)
+            duration_ms = (now - t0) * 1000
+            record = GateRecord(
+                gate=gate,
+                passed=passed,
+                attempt=attempt,
+                outputs=outputs,
+                duration_ms=duration_ms,
+                error=event.get("error"),
+            )
+            self.provenance.log_gate(self.run_id, record)
+            if passed:
+                self.circuit_breaker.record_success(gate)
+                print(f"   ✅  {gate}")
+            else:
+                self.circuit_breaker.record_failure(gate, event.get("error", ""))
+                print(f"   ❌  {gate}")
+
+        elif ev == "fix_start":
+            attempt = event.get("attempt", 1)
+            self.watchdog.set_step(f"fix.attempt{attempt}")
+            print(f"   \U0001f504  fix attempt {attempt}")
+
+        elif ev == "run_complete":
+            self._final_event = event
+            self._complete_event.set()
+            self.stop()
 
 
 @dataclass
@@ -175,6 +327,109 @@ class Executor:
                 success=False,
                 error=str(e),
                 duration_seconds=duration
+            )
+
+    def execute_with_provenance(
+        self,
+        issue_key: str,
+        repository: str,
+        run_id: str,
+        provenance: ProvenanceLogger,
+        watchdog: Watchdog,
+        checkpoint: Checkpoint,
+        circuit_breaker: CircuitBreaker,
+        server_call,
+    ) -> TaskResult:
+        """
+        Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
+        Starts one Claude session and monitors the skill-written provenance events file.
+        """
+        start_time = time.time()
+
+        try:
+            repo_config = self._get_repo_config(repository)
+            repo_path = self.workspace_root / repo_config['path']
+
+            if not repo_path.exists():
+                raise FileNotFoundError(f"Repository path not found: {repo_path}")
+
+            results_dir = repo_path / ".harness-results"
+            results_dir.mkdir(exist_ok=True)
+            events_path = results_dir / "provenance-events.jsonl"
+            # Remove stale events file from a prior run
+            if events_path.exists():
+                events_path.unlink()
+
+            knowledge_context = self.knowledge_engine.get_repository_knowledge(repository)
+            foundations = self.knowledge_engine.get_foundations_guidance('standards')
+            context_file = self._create_knowledge_context_file(
+                knowledge_context=knowledge_context,
+                foundations_standards=foundations.get('standards', ''),
+                repo_config=repo_config,
+                repo_path=repo_path,
+            )
+
+            monitor = EventMonitor(
+                run_id=run_id,
+                issue_key=issue_key,
+                repo_path=repo_path,
+                provenance=provenance,
+                watchdog=watchdog,
+                checkpoint=checkpoint,
+                circuit_breaker=circuit_breaker,
+                server_call=server_call,
+            )
+            monitor.start(events_path)
+
+            prompt = (
+                f"/autonomous-implement {issue_key}"
+                f" --context-file {context_file}"
+                f" --provenance-file {events_path}"
+            )
+            cmd = [
+                'claude',
+                '--plugin-dir', str(self.factory_root),
+                '--dangerously-skip-permissions',
+                '-p', prompt,
+            ]
+
+            print(f"\n\U0001f680 Launching claude for {issue_key} in {repo_path.name}...")
+            proc = subprocess.run(
+                cmd,
+                cwd=str(repo_path),
+                text=True,
+                timeout=7200,  # 2-hour ceiling
+                stdout=None,
+                stderr=None,
+            )
+
+            final = monitor.wait_for_complete(timeout=30)  # grace period after proc exits
+            monitor.stop()
+
+            if context_file.exists():
+                context_file.unlink()
+
+            success = proc.returncode == 0 and (final or {}).get("outcome") in ("success", "partial")
+            return TaskResult(
+                repository=repository,
+                issue_key=issue_key,
+                success=success,
+                pr_url=(final or {}).get("pr_url"),
+                output=(final or {}).get("outcome", ""),
+                error=None if success else f"exit code {proc.returncode}",
+                duration_seconds=time.time() - start_time,
+            )
+
+        except subprocess.TimeoutExpired:
+            monitor.stop()
+            return TaskResult(
+                repository=repository, issue_key=issue_key, success=False,
+                error="claude timed out after 2 hours", duration_seconds=time.time() - start_time,
+            )
+        except Exception as exc:
+            return TaskResult(
+                repository=repository, issue_key=issue_key, success=False,
+                error=str(exc), duration_seconds=time.time() - start_time,
             )
 
     def execute_multi_repo(
@@ -385,6 +640,8 @@ When implementing this issue:
                 cwd=str(repo_path),
                 text=True,
                 timeout=3600,  # 1-hour ceiling for large issues
+                stdout=None,   # inherit parent stdout — live stream to terminal
+                stderr=None,   # inherit parent stderr
             )
 
             success = result.returncode == 0
