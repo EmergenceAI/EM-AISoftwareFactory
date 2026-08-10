@@ -35,6 +35,9 @@ Use this skill to:
 
 # Combined options
 /autonomous-implement ABI-123 --context-file /tmp/context.md --branch feature/ABI-123
+
+# With harness provenance tracking
+/autonomous-implement ABI-123 --provenance-file .harness-results/provenance-events.jsonl
 ```
 
 ### Parameters
@@ -44,6 +47,7 @@ Use this skill to:
 - `--branch <name>`: Use existing branch instead of creating new one
 - `--skip-eval-gen`: Skip evaluation generation step
 - `--force-pr`: Create PR even if evaluations fail
+- `--provenance-file <path>`: Path to JSONL file for appending structured progress events. Used by the harness to monitor live progress. If omitted, no events are written.
 
 ## Process Flow
 
@@ -167,9 +171,39 @@ if (contextFile && fs.existsSync(contextFile)) {
   console.log(`   Patterns: ${patterns.length} chars`)
   console.log(`   Foundations: ${foundations.length} chars`)
 }
+
+// Parse provenance file path
+const provenanceFile = args['provenance-file'] || null
 ```
 
+---
+
+### Provenance Helper (if --provenance-file provided)
+
+Throughout this skill, append events to the provenance file after each major step.
+Use the Write tool to append (read current content first, append new line, write back).
+If the file does not exist yet, create it with the first event.
+
+Event format — one JSON object per line, no trailing comma:
+
+```json
+{"event": "step_start", "step": "<name>", "timestamp": "<ISO8601>"}
+{"event": "step_end", "step": "<name>", "success": true, "duration_ms": 12345, "output_preview": "<first 300 chars of output>"}
+{"event": "gate", "gate": "<name>", "attempt": 1, "passed": true, "outputs": {}}
+{"event": "fix_start", "attempt": 1, "timestamp": "<ISO8601>"}
+{"event": "fix_end", "attempt": 1, "success": true, "duration_ms": 12345}
+{"event": "run_complete", "outcome": "success", "pr_url": "https://...", "timestamp": "<ISO8601>"}
+```
+
+Steps to emit for: `fetch-issue`, `create-branch`, `research`, `plan`, `eval-gen`, `implement`,
+each gate (`linter`, `tests`, `evals`, `code-review`), each fix attempt, and `create-pr`.
+
+---
+
 ### Step 1: Fetch Jira Issue
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "fetch-issue", "timestamp": "<now ISO8601>"}`
 
 Get issue details including acceptance criteria:
 
@@ -187,7 +221,13 @@ Extract:
 - Current status
 - Issue type (for branch naming)
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "fetch-issue", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars of issue summary/description>"}`
+
 ### Step 2: Create Branch from Main
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "create-branch", "timestamp": "<now ISO8601>"}`
 
 **CRITICAL:** Always create new branch from main/master to avoid including unrelated changes.
 
@@ -254,7 +294,13 @@ git branch --show-current
 - ✅ Avoids merge conflicts from stale branches
 - ❌ Creating from current branch risks including WIP changes
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "create-branch", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<branch name created>"}`
+
 ### Step 3: Research Codebase
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "research", "timestamp": "<now ISO8601>"}`
 
 Use existing `/research-codebase` skill to understand context:
 
@@ -273,7 +319,13 @@ This provides:
 - Test structure to match
 - Potential conflicts or duplicates
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "research", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars of research output>"}`
+
 ### Step 4: Create Implementation Plan
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "plan", "timestamp": "<now ISO8601>"}`
 
 Use existing `/create-plan` skill, **enriched with knowledge context if available**:
 
@@ -335,7 +387,13 @@ Implement API rate limiting using Redis...
 - Performance tests for latency
 ```
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "plan", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars of plan overview>"}`
+
 ### Step 5: Generate Evals from Acceptance Criteria
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "eval-gen", "timestamp": "<now ISO8601>"}`
 
 Use `/eval-generator` to create validation tests:
 
@@ -349,7 +407,13 @@ Creates `tests/evals/${issueKey}/` with:
 - `test_quality.py` - Coverage and quality gates
 - `conftest.py` - Test fixtures
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "eval-gen", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars listing generated eval files>"}`
+
 ### Step 6: Implement the Plan
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "implement", "timestamp": "<now ISO8601>"}`
 
 Use existing `/implement-plan` skill:
 
@@ -362,6 +426,9 @@ Executes implementation:
 - Follows coding patterns from research
 - Writes initial tests
 - Updates documentation
+
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "implement", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars listing files created/modified>"}`
 
 ### Step 7: Verify & Fix
 
@@ -377,6 +444,20 @@ The four gates (in order):
 3. **New evals** — acceptance-criteria tests in `tests/evals/${issueKey}/`
 4. **Code review blockers** — parallel review agents; only blockers are fixed (nits ignored)
 
+> **Provenance:** After each gate result, append:
+> `{"event": "gate", "gate": "linter", "attempt": 1, "passed": true, "outputs": <gate JSON result>}`
+>
+> Use the actual gate name (`linter`, `tests`, `evals`, `code-review`) and current attempt number.
+> Set `passed` to `true` if the gate passed, `false` if it failed. Include the gate's JSON result in `outputs`.
+
+> **Provenance:** Before each fix invocation, append:
+> `{"event": "fix_start", "attempt": 1, "timestamp": "<now ISO8601>"}`
+>
+> After each fix invocation completes, append:
+> `{"event": "fix_end", "attempt": 1, "success": true, "duration_ms": <elapsed ms>}`
+>
+> Use the current attempt number (1-3). Set `success` to `true` if the fix resolved all remaining failures, `false` otherwise.
+
 **On success** (all gates pass within 3 attempts): proceed to Step 8.
 
 **On failure** (all 3 attempts exhausted with remaining failures):
@@ -386,6 +467,9 @@ The four gates (in order):
 See `/verify-and-fix` skill for full loop logic, fix strategies, and output schema.
 
 ### Step 8: Create Pull Request
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "create-pr", "timestamp": "<now ISO8601>"}`
 
 If `/verify-and-fix` passes, use existing `/create-pr` skill:
 
@@ -434,6 +518,9 @@ pytest tests/evals/ABI-123/ -v
 - List fixes applied across all attempts
 - Request manual review for remaining failures
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "create-pr", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<PR URL and number>"}`
+
 ### Step 9: Update Jira
 
 Use `/jira-update` to sync status:
@@ -464,6 +551,16 @@ All acceptance criteria validated through automated tests.
 **Next Steps:**
 - Merge after approval
 ```
+
+> **Provenance:** After Step 9 completes (or after Step 8 if Step 9 is skipped), append the final event:
+> `{"event": "run_complete", "outcome": "success", "pr_url": "<url or null>", "timestamp": "<now ISO8601>"}`
+>
+> Set `outcome` based on the run result:
+> - `"success"` — all gates passed and PR was created
+> - `"partial"` — gates failed but PR was still created (e.g. `--force-pr` used)
+> - `"failed"` — no PR was created (gates failed without `--force-pr`, or a critical step errored)
+>
+> Set `pr_url` to the created PR URL, or `null` if no PR was created.
 
 ## Output
 
