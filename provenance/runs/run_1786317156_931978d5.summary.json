@@ -1,0 +1,38 @@
+{
+  "run_id": "run_1786317156_931978d5",
+  "issue_key": "SEMI-1665",
+  "repository": "semi",
+  "overall_outcome": "partial",
+  "gate_attempts": 2,
+  "steps_total": 5,
+  "steps_succeeded": 4,
+  "gates_total": 8,
+  "gates_passed": 5,
+  "gate_breakdown": {
+    "linter": {
+      "attempts": 2,
+      "final": "pass"
+    },
+    "tests": {
+      "attempts": 2,
+      "final": "fail"
+    },
+    "evals": {
+      "attempts": 2,
+      "final": "pass"
+    },
+    "code-review": {
+      "attempts": 2,
+      "final": "fail"
+    }
+  },
+  "pr_url": null,
+  "duration_ms": 4580865.576028824,
+  "cost_usd": 0.0,
+  "tokens_in": 0,
+  "tokens_out": 0,
+  "timestamp": "2026-08-10T00:28:56.951977Z",
+  "reward": 0.5,
+  "human_feedback": null,
+  "human_rating": null
+}

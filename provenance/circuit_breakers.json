@@ -1,0 +1,21 @@
+{
+  "linter": {
+    "state": "closed",
+    "consecutive_failures": 0
+  },
+  "tests": {
+    "state": "closed",
+    "consecutive_failures": 1,
+    "last_error": ""
+  },
+  "evals": {
+    "state": "closed",
+    "consecutive_failures": 0
+  },
+  "code-review": {
+    "state": "open",
+    "consecutive_failures": 5,
+    "last_error": "",
+    "opened_at": "2026-08-10T00:28:10Z"
+  }
+}
