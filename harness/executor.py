@@ -97,13 +97,15 @@ class EventMonitor:
                     f.seek(position)
                     for raw_line in f:
                         line = raw_line.strip()
-                        if line:
-                            try:
-                                event = json.loads(line)
-                                self._dispatch(event)
-                            except json.JSONDecodeError:
-                                pass   # partial write — will retry next poll
-                    position = f.tell()
+                        if not line:
+                            position = f.tell()
+                            continue
+                        try:
+                            event = json.loads(line)
+                            self._dispatch(event)
+                            position = f.tell()
+                        except json.JSONDecodeError:
+                            break  # partial write — retry from current position next poll
             except OSError:
                 pass
             time.sleep(0.5)
@@ -422,6 +424,11 @@ class Executor:
 
         except subprocess.TimeoutExpired:
             monitor.stop()
+            try:
+                if context_file.exists():
+                    context_file.unlink()
+            except Exception:
+                pass
             return TaskResult(
                 repository=repository, issue_key=issue_key, success=False,
                 error="claude timed out after 2 hours", duration_seconds=time.time() - start_time,
@@ -640,8 +647,6 @@ When implementing this issue:
                 cwd=str(repo_path),
                 text=True,
                 timeout=3600,  # 1-hour ceiling for large issues
-                stdout=None,   # inherit parent stdout — live stream to terminal
-                stderr=None,   # inherit parent stderr
             )
 
             success = result.returncode == 0
