@@ -58,11 +58,6 @@ class EventMonitor:
         self._complete_event = threading.Event()
         self._final_event: Optional[dict] = None   # run_complete payload
         self._step_starts: dict = {}               # step → start time (float)
-        self._proc: Optional[subprocess.Popen] = None  # set after Popen starts
-
-    def set_proc(self, proc: subprocess.Popen) -> None:
-        """Register the Claude subprocess so watchdog can kill it on timeout."""
-        self._proc = proc
 
     def start(self, events_path: Path) -> None:
         """Start background monitoring of events_path."""
@@ -129,7 +124,7 @@ class EventMonitor:
         if ev == "step_start":
             step = event["step"]
             self._step_starts[step] = now
-            self.watchdog.set_step(step, proc=self._proc)
+            self.watchdog.set_step(step)
             self._server_call("update_run", self.run_id, current_step=step)
             print(f"   ▶  {step}")
 
@@ -407,20 +402,12 @@ class Executor:
             ]
 
             print(f"\n\U0001f680 Launching claude for {issue_key} in {repo_path.name}...")
-            proc = subprocess.Popen(
+            proc = subprocess.run(
                 cmd,
                 cwd=str(repo_path),
                 text=True,
+                timeout=7200,  # 2-hour hard ceiling
             )
-            monitor.set_proc(proc)  # watchdog can now kill on step timeout
-            watchdog.set_step("start", proc=proc)
-
-            # Wait for process to finish (2-hour hard ceiling)
-            try:
-                proc.wait(timeout=7200)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
 
             final = monitor.wait_for_complete(timeout=30)
             monitor.stop()
