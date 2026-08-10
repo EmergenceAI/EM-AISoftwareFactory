@@ -81,7 +81,7 @@ Event format — one JSON object per line, no trailing comma:
 {"event": "gate", "gate": "<name>", "attempt": 1, "passed": true, "outputs": {}}
 {"event": "fix_start", "attempt": 1, "timestamp": "<ISO8601>"}
 {"event": "fix_end", "attempt": 1, "success": true, "duration_ms": 12345}
-{"event": "run_complete", "outcome": "success", "pr_url": "https://...", "timestamp": "<ISO8601>"}
+{"event": "run_complete", "outcome": "success", "pr_url": null, "timestamp": "<ISO8601>"}
 ```
 
 Gates to emit events for: `linter`, `tests`, `evals`, `code-review` (after each gate result, every attempt).
