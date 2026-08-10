@@ -50,6 +50,12 @@ from harness.router import Router
 from harness.executor import Executor
 from harness.knowledge import KnowledgeEngine
 from harness import jira_mcp
+from harness.provenance import ProvenanceLogger
+from harness.watchdog import Watchdog
+from harness.checkpoint import Checkpoint
+from harness.circuit_breaker import CircuitBreaker
+from harness.locks import RepoLock, LockError
+import uuid
 
 _FACTORY_ROOT   = Path(__file__).parent.parent
 _PROVENANCE_DIR = _FACTORY_ROOT / "provenance"
@@ -104,15 +110,55 @@ def cmd_implement(args):
     repository = _resolve_repository(args, workspace_config)
     print()
 
-    if True:
-        # ── Skill mode with provenance monitoring ─────────────────────────
-        executor = Executor(factory_root, workspace_config)
-        result = executor.execute_single_repo(
+    # Skill mode with provenance monitoring
+    run_id = f"run_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    prov_dir = factory_root / "provenance"
+    provenance = ProvenanceLogger(prov_dir)
+
+    repo_config = workspace_config.get('repositories', [])
+    repo_path = None
+    for r in repo_config:
+        if r['name'] == repository:
+            workspace_root = Path(workspace_config['workspace']['root'])
+            repo_path = workspace_root / r['path']
+            break
+
+    executor = Executor(factory_root, workspace_config)
+
+    try:
+        if repo_path:
+            (repo_path / ".harness-results").mkdir(exist_ok=True)
+
+        provenance.start_run(run_id, args.issue_key, repository, str(repo_path or ''))
+        print(f"\n🏭 Run {run_id}  |  {args.issue_key} → {repository}")
+
+        watchdog = Watchdog(run_id=run_id, on_warn=lambda s, e: print(f"⚠️  {s} running {e/60:.0f}m"), on_kill=lambda s, e: print(f"🔴  killing {s}"))
+        watchdog.start()
+        checkpoint = Checkpoint(repo_path) if repo_path else None
+        circuit_breaker = CircuitBreaker(prov_dir)
+
+        def _noop_server_call(fn, *a, **kw): pass
+
+        result = executor.execute_with_provenance(
             issue_key=args.issue_key,
             repository=repository,
+            run_id=run_id,
+            provenance=provenance,
+            watchdog=watchdog,
+            checkpoint=checkpoint,
+            circuit_breaker=circuit_breaker,
+            server_call=_noop_server_call,
         )
+
+        watchdog.stop()
+        outcome = "success" if result.success else "partial" if result.pr_url else "failed"
+        provenance.finish_run(run_id, outcome, pr_url=result.pr_url, gate_attempts=0, steps=[], gate_results=[])
         print(result.summary() if hasattr(result, 'summary') else str(result))
         sys.exit(0 if result.success else 1)
+
+    except LockError as e:
+        print(f"⏳  Repo locked: {e}")
+        sys.exit(1)
 
 
 def cmd_multi_repo(args):
