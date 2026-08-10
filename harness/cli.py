@@ -152,7 +152,17 @@ def cmd_implement(args):
 
         watchdog.stop()
         outcome = "success" if result.success else "partial" if result.pr_url else "failed"
-        provenance.finish_run(run_id, outcome, pr_url=result.pr_url, gate_attempts=0, steps=[], gate_results=[])
+        provenance.finish_run(
+            run_id=run_id,
+            issue_key=args.issue_key,
+            repository=repository,
+            overall_outcome=outcome,
+            gate_attempts=0,
+            steps=[],
+            gate_results=[],
+            pr_url=result.pr_url,
+            duration_ms=(time.time() - start_time) * 1000,
+        )
         print(result.summary() if hasattr(result, 'summary') else str(result))
         sys.exit(0 if result.success else 1)
 
