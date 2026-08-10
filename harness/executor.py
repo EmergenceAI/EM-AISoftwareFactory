@@ -95,7 +95,10 @@ class EventMonitor:
             try:
                 with open(events_path) as f:
                     f.seek(position)
-                    for raw_line in f:
+                    while True:
+                        raw_line = f.readline()
+                        if not raw_line:
+                            break  # EOF — wait for more data
                         line = raw_line.strip()
                         if not line:
                             position = f.tell()
