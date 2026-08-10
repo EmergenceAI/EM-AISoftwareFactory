@@ -29,6 +29,9 @@ This is a **reusable primitive**. It is invoked by `/autonomous-implement` after
 
 # Skip eval gate (no evals generated yet)
 /verify-and-fix ABI-123 --skip-evals
+
+# With harness provenance tracking
+/verify-and-fix ABI-123 --provenance-file .harness-results/provenance-events.jsonl
 ```
 
 ### Parameters
@@ -37,6 +40,7 @@ This is a **reusable primitive**. It is invoked by `/autonomous-implement` after
 - `--gates <list>`: Comma-separated subset of gates to run: `linter`, `tests`, `evals`, `review`. Default: all four.
 - `--max-attempts <n>`: Override retry limit. Default: `VERIFY_RETRY_LIMIT` env var (default 3).
 - `--skip-evals`: Skip Gate 3 (eval tests). Implies only gates 1, 2, 4 run.
+- `--provenance-file <path>`: Path to JSONL file for appending structured gate/fix events. Used by the harness to monitor live progress. If omitted, no events are written.
 
 ---
 
@@ -62,6 +66,27 @@ This is a **reusable primitive**. It is invoked by `/autonomous-implement` after
 ```
 
 **Gate order rationale:** Linter errors are cheapest to fix and can cause test failures (import errors, syntax errors). Regressions in existing tests must be resolved before running new evals to avoid false positives. Code review is the most expensive gate (spawns parallel agents), so it runs last — only when the fast gates are already green.
+
+---
+
+### Provenance Helper (if --provenance-file provided)
+
+Throughout this skill, append events to the provenance file after each major step.
+Use the Write tool to append (read current content first, append new line, write back).
+If the file does not exist yet, create it with the first event.
+
+Event format — one JSON object per line, no trailing comma:
+
+```json
+{"event": "gate", "gate": "<name>", "attempt": 1, "passed": true, "outputs": {}}
+{"event": "fix_start", "attempt": 1, "timestamp": "<ISO8601>"}
+{"event": "fix_end", "attempt": 1, "success": true, "duration_ms": 12345}
+{"event": "run_complete", "outcome": "success", "pr_url": "https://...", "timestamp": "<ISO8601>"}
+```
+
+Gates to emit events for: `linter`, `tests`, `evals`, `code-review` (after each gate result, every attempt).
+Fix events: emit `fix_start` before each fix invocation, `fix_end` after it completes.
+Emit `run_complete` as the final event when the skill exits (pass or fail).
 
 ---
 
@@ -107,6 +132,9 @@ eslint src/ --fix
 
 **Gate fails when:** Any linter error remains after the auto-fix pass.
 
+> **Provenance:** If `--provenance-file` provided, append after the gate completes:
+> `{"event": "gate", "gate": "linter", "attempt": <current attempt>, "passed": <true|false>, "outputs": <gate result JSON>}`
+
 ---
 
 ### Gate 2: Existing Tests
@@ -137,6 +165,9 @@ go test ./...
 3. If regression: fix the implementation to restore correct behavior.
 4. If intentional behavior change: update the test to match the new contract AND add a comment explaining why.
 5. Do NOT delete tests to make them pass.
+
+> **Provenance:** If `--provenance-file` provided, append after the gate completes:
+> `{"event": "gate", "gate": "tests", "attempt": <current attempt>, "passed": <true|false>, "outputs": <gate result JSON>}`
 
 ---
 
@@ -171,6 +202,9 @@ const summary = {
 }
 ```
 
+> **Provenance:** If `--provenance-file` provided, append after the gate completes:
+> `{"event": "gate", "gate": "evals", "attempt": <current attempt>, "passed": <true|false>, "outputs": <gate result JSON>}`
+
 ---
 
 ### Gate 4: Code Review Blockers Check
@@ -192,6 +226,9 @@ Read the review output and filter for the `### Blockers` section. If the verdict
 2. Locate the file and line.
 3. Apply the fix described in the blocker.
 4. Do NOT address suggestions or nits — those go in the PR description for the human reviewer.
+
+> **Provenance:** If `--provenance-file` provided, append after the gate completes:
+> `{"event": "gate", "gate": "code-review", "attempt": <current attempt>, "passed": <true|false>, "outputs": <gate result JSON>}`
 
 ---
 
@@ -246,7 +283,9 @@ while (attempt <= maxAttempts) {
   }
   
   if (attempt < maxAttempts) {
+    // Provenance: append {"event": "fix_start", "attempt": attempt, "timestamp": "<now ISO8601>"}
     const fixes = await applyTargetedFixes(gateResults)
+    // Provenance: append {"event": "fix_end", "attempt": attempt, "success": <true if fixes resolved all failures>, "duration_ms": <elapsed ms>}
     fixLog.push(...fixes)
     attempt++
   } else {
@@ -261,6 +300,14 @@ while (attempt <= maxAttempts) {
   }
 }
 ```
+
+> **Provenance:** Before each fix invocation, append:
+> `{"event": "fix_start", "attempt": <current attempt>, "timestamp": "<now ISO8601>"}`
+>
+> After each fix invocation completes, append:
+> `{"event": "fix_end", "attempt": <current attempt>, "success": <true if fixes resolved all remaining failures>, "duration_ms": <elapsed ms>}`
+>
+> Use the current attempt number (1–max). Set `success` to `true` if the fix resolved all remaining gate failures, `false` otherwise.
 
 ---
 
@@ -427,3 +474,12 @@ EVAL_TIMEOUT=300           # Seconds before eval run times out (default: 300)
 # Full verification before opening PR manually
 /verify-and-fix ABI-123 --max-attempts 5
 ```
+
+> **Provenance:** After the skill exits (whether passed or failed), append the final event:
+> `{"event": "run_complete", "outcome": "success", "pr_url": null, "timestamp": "<now ISO8601>"}`
+>
+> Set `outcome` based on the result:
+> - `"success"` — all gates passed within the attempt limit
+> - `"failed"` — attempt limit exhausted with remaining failures
+>
+> Set `pr_url` to `null` (this skill does not create PRs; the caller handles PR creation).
