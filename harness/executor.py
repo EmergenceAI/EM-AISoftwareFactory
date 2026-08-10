@@ -102,10 +102,13 @@ class EventMonitor:
                             continue
                         try:
                             event = json.loads(line)
-                            self._dispatch(event)
-                            position = f.tell()
                         except json.JSONDecodeError:
                             break  # partial write — retry from current position next poll
+                        try:
+                            self._dispatch(event)
+                        except Exception:
+                            pass  # dispatch error must not kill the monitor loop
+                        position = f.tell()
             except OSError:
                 pass
             time.sleep(0.5)
