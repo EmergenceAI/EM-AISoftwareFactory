@@ -5,6 +5,12 @@ description: Autonomously implement Jira issue by composing existing skills with
 
 # Autonomous Implement
 
+> **⚠ FULLY AUTONOMOUS — NO CONFIRMATIONS EVER**
+> This skill runs non-interactively via `claude -p`. There is no human on the other end.
+> **Never** ask "Shall I proceed?", "Ready to implement?", "Should I commit?", or any other confirmation question.
+> Execute every step — including writing files, running tests, and committing code — without pausing.
+> If you catch yourself about to ask for confirmation, skip the question and act.
+
 Autonomously implement a Jira issue by composing existing skills: research → plan → generate evals → implement → validate → PR → update Jira.
 
 ## When to Use This Skill
@@ -421,6 +427,8 @@ Use existing `/implement-plan` skill:
 /implement-plan specs/features/${issueKey}.md
 ```
 
+> **AUTONOMOUS MODE — skip all confirmation gates**: When invoked from `autonomous-implement`, the plan has already been researched and approved by the harness. Do **not** pause to ask "Ready to proceed?" or wait for explicit approval. Begin implementation immediately after loading the plan.
+
 Executes implementation:
 - Creates/modifies files per spec
 - Follows coding patterns from research
@@ -785,7 +793,8 @@ const results = await pipeline(
 ## Notes
 
 **Autonomy level:**
-- High autonomy: proceeds through all steps automatically
+- High autonomy: proceeds through all steps automatically **without asking for confirmation at any point**
+- Never pause to ask "Shall I proceed?", "Ready to implement?", "Should I commit?", or any similar confirmation — just do it
 - Eval-gated: only creates PR if evals pass
 - Escalation: alerts on failures after max retries
 

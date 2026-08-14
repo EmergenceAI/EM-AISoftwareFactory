@@ -347,6 +347,7 @@ class Executor:
         checkpoint: Checkpoint,
         circuit_breaker: CircuitBreaker,
         server_call,
+        branch: Optional[str] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
@@ -394,6 +395,8 @@ class Executor:
                 f" --context-file {context_file}"
                 f" --provenance-file {events_path}"
             )
+            if branch:
+                prompt += f" --branch {branch}"
             cmd = [
                 'claude',
                 '--plugin-dir', str(self.factory_root),

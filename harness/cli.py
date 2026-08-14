@@ -111,7 +111,8 @@ def cmd_implement(args):
     print()
 
     # Skill mode with provenance monitoring
-    run_id = f"run_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    start_time = time.time()
+    run_id = f"run_{int(start_time)}_{uuid.uuid4().hex[:8]}"
     prov_dir = factory_root / "provenance"
     provenance = ProvenanceLogger(prov_dir)
 
@@ -148,6 +149,7 @@ def cmd_implement(args):
             checkpoint=checkpoint,
             circuit_breaker=circuit_breaker,
             server_call=_noop_server_call,
+            branch=getattr(args, 'branch', None),
         )
 
         watchdog.stop()
@@ -748,6 +750,12 @@ Examples:
         action='store_true',
         default=False,
         help='Auto-merge PR via gh CLI when all gates pass (harness mode only)',
+    )
+    implement.add_argument(
+        '--branch',
+        default=None,
+        metavar='BRANCH',
+        help='Use an existing branch instead of creating a new one (e.g. observability-healthchecks)',
     )
     implement.set_defaults(func=cmd_implement)
 
