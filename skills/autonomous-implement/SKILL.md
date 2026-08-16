@@ -5,6 +5,12 @@ description: Autonomously implement Jira issue by composing existing skills with
 
 # Autonomous Implement
 
+> **⚠ FULLY AUTONOMOUS — NO CONFIRMATIONS EVER**
+> This skill runs non-interactively via `claude -p`. There is no human on the other end.
+> **Never** ask "Shall I proceed?", "Ready to implement?", "Should I commit?", or any other confirmation question.
+> Execute every step — including writing files, running tests, and committing code — without pausing.
+> If you catch yourself about to ask for confirmation, skip the question and act.
+
 Autonomously implement a Jira issue by composing existing skills: research → plan → generate evals → implement → validate → PR → update Jira.
 
 ## When to Use This Skill
@@ -21,7 +27,7 @@ Use this skill to:
 # Implement single issue
 /autonomous-implement ABI-123
 
-# With repository knowledge context (from orchestrator)
+# With repository knowledge context (from harness)
 /autonomous-implement ABI-123 --context-file /tmp/knowledge_context.md
 
 # With specific branch (if already created)
@@ -35,6 +41,9 @@ Use this skill to:
 
 # Combined options
 /autonomous-implement ABI-123 --context-file /tmp/context.md --branch feature/ABI-123
+
+# With harness provenance tracking
+/autonomous-implement ABI-123 --provenance-file .harness-results/provenance-events.jsonl
 ```
 
 ### Parameters
@@ -44,38 +53,43 @@ Use this skill to:
 - `--branch <name>`: Use existing branch instead of creating new one
 - `--skip-eval-gen`: Skip evaluation generation step
 - `--force-pr`: Create PR even if evaluations fail
+- `--provenance-file <path>`: Path to JSONL file for appending structured progress events. Used by the harness to monitor live progress. If omitted, no events are written.
 
 ## Process Flow
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ 1. Fetch Jira Issue                                     │
-│    ↓                                                     │
-│ 2. Create Branch from main/master (CRITICAL)            │
-│    ↓                                                     │
-│ 3. Research Codebase (existing /research-codebase)      │
-│    ↓                                                     │
-│ 4. Create Plan (existing /create-plan)                  │
-│    ↓                                                     │
-│ 5. Generate Evals (/eval-generator)                     │
-│    ↓                                                     │
-│ 6. Implement (existing /implement-plan)                 │
-│    ↓                                                     │
-│ 7. Run Evals (pytest)                                   │
-│    ├─ PASS → Continue                                   │
-│    └─ FAIL → Retry (max 3 attempts)                     │
-│         ↓                                                │
-│ 8. Create PR (existing /create-pr)                      │
-│    ↓                                                     │
-│ 9. Code Review (existing /code-review)                  │
-│    ↓                                                     │
-│ 10. Update Jira (/jira-update)                          │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Fetch Jira Issue                                         │
+│    ↓                                                         │
+│ 2. Create Branch from main/master (CRITICAL)                │
+│    ↓                                                         │
+│ 3. Research Codebase (/research-codebase)                   │
+│    ↓                                                         │
+│ 4. Create Plan (/create-plan)                               │
+│    ↓                                                         │
+│ 5. Generate Evals (/eval-generator)                         │
+│    ↓                                                         │
+│ 6. Implement (/implement-plan)                              │
+│    ↓                                                         │
+│ 7. Verify & Fix (/verify-and-fix) ← unified loop           │
+│    ├─ Gate 1: Linter & static analysis                      │
+│    ├─ Gate 2: Existing tests (no regressions)               │
+│    ├─ Gate 3: New evals (acceptance criteria)               │
+│    └─ Gate 4: Code review blockers check                    │
+│    ├─ ALL PASS → Continue                                   │
+│    └─ ANY FAIL → Fix → Retry (max 3 attempts)              │
+│         ↓ (exhausted)                                        │
+│         Create PR with [NEEDS-REVIEW] label                 │
+│    ↓                                                         │
+│ 8. Create PR (/create-pr)                                   │
+│    ↓                                                         │
+│ 9. Update Jira (/jira-update)                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Knowledge Context Integration
 
-When invoked by the **workspace orchestrator**, this skill receives a knowledge context file containing:
+When invoked by the **workspace harness**, this skill receives a knowledge context file containing:
 
 ### Context File Contents
 
@@ -163,9 +177,39 @@ if (contextFile && fs.existsSync(contextFile)) {
   console.log(`   Patterns: ${patterns.length} chars`)
   console.log(`   Foundations: ${foundations.length} chars`)
 }
+
+// Parse provenance file path
+const provenanceFile = args['provenance-file'] || null
 ```
 
+---
+
+### Provenance Helper (if --provenance-file provided)
+
+Throughout this skill, append events to the provenance file after each major step.
+Use the Write tool to append (read current content first, append new line, write back).
+If the file does not exist yet, create it with the first event.
+
+Event format — one JSON object per line, no trailing comma:
+
+```json
+{"event": "step_start", "step": "<name>", "timestamp": "<ISO8601>"}
+{"event": "step_end", "step": "<name>", "success": true, "duration_ms": 12345, "output_preview": "<first 300 chars of output>"}
+{"event": "gate", "gate": "<name>", "attempt": 1, "passed": true, "outputs": {}}
+{"event": "fix_start", "attempt": 1, "timestamp": "<ISO8601>"}
+{"event": "fix_end", "attempt": 1, "success": true, "duration_ms": 12345}
+{"event": "run_complete", "outcome": "success", "pr_url": "https://...", "timestamp": "<ISO8601>"}
+```
+
+Steps to emit for: `fetch-issue`, `create-branch`, `research`, `plan`, `eval-gen`, `implement`,
+each gate (`linter`, `tests`, `evals`, `code-review`), each fix attempt, and `create-pr`.
+
+---
+
 ### Step 1: Fetch Jira Issue
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "fetch-issue", "timestamp": "<now ISO8601>"}`
 
 Get issue details including acceptance criteria:
 
@@ -183,7 +227,13 @@ Extract:
 - Current status
 - Issue type (for branch naming)
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "fetch-issue", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars of issue summary/description>"}`
+
 ### Step 2: Create Branch from Main
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "create-branch", "timestamp": "<now ISO8601>"}`
 
 **CRITICAL:** Always create new branch from main/master to avoid including unrelated changes.
 
@@ -250,7 +300,13 @@ git branch --show-current
 - ✅ Avoids merge conflicts from stale branches
 - ❌ Creating from current branch risks including WIP changes
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "create-branch", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<branch name created>"}`
+
 ### Step 3: Research Codebase
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "research", "timestamp": "<now ISO8601>"}`
 
 Use existing `/research-codebase` skill to understand context:
 
@@ -269,7 +325,13 @@ This provides:
 - Test structure to match
 - Potential conflicts or duplicates
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "research", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars of research output>"}`
+
 ### Step 4: Create Implementation Plan
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "plan", "timestamp": "<now ISO8601>"}`
 
 Use existing `/create-plan` skill, **enriched with knowledge context if available**:
 
@@ -331,7 +393,13 @@ Implement API rate limiting using Redis...
 - Performance tests for latency
 ```
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "plan", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars of plan overview>"}`
+
 ### Step 5: Generate Evals from Acceptance Criteria
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "eval-gen", "timestamp": "<now ISO8601>"}`
 
 Use `/eval-generator` to create validation tests:
 
@@ -345,7 +413,13 @@ Creates `tests/evals/${issueKey}/` with:
 - `test_quality.py` - Coverage and quality gates
 - `conftest.py` - Test fixtures
 
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "eval-gen", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars listing generated eval files>"}`
+
 ### Step 6: Implement the Plan
+
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "implement", "timestamp": "<now ISO8601>"}`
 
 Use existing `/implement-plan` skill:
 
@@ -353,67 +427,59 @@ Use existing `/implement-plan` skill:
 /implement-plan specs/features/${issueKey}.md
 ```
 
+> **AUTONOMOUS MODE — skip all confirmation gates**: When invoked from `autonomous-implement`, the plan has already been researched and approved by the harness. Do **not** pause to ask "Ready to proceed?" or wait for explicit approval. Begin implementation immediately after loading the plan.
+
 Executes implementation:
 - Creates/modifies files per spec
 - Follows coding patterns from research
 - Writes initial tests
 - Updates documentation
 
-### Step 7: Run Evals
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "implement", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<first 300 chars listing files created/modified>"}`
 
-Execute generated eval tests:
+### Step 7: Verify & Fix
+
+Invoke the `/verify-and-fix` skill. This runs all four verification gates in sequence, retrying with targeted fixes on each failure, up to 3 attempts:
 
 ```bash
-pytest tests/evals/${issueKey}/ -v --json-report --json-report-file=eval-results.json
+/verify-and-fix ${issueKey}
 ```
 
-**Parse results:**
-```javascript
-const evalResults = JSON.parse(readFile('eval-results.json'))
+The four gates (in order):
+1. **Linter & static analysis** — auto-fix pass first, then manual edits for remaining errors
+2. **Existing tests** — full suite excluding `tests/evals/`; no regressions allowed
+3. **New evals** — acceptance-criteria tests in `tests/evals/${issueKey}/`
+4. **Code review blockers** — parallel review agents; only blockers are fixed (nits ignored)
 
-const summary = {
-  total: evalResults.summary.total,
-  passed: evalResults.summary.passed,
-  failed: evalResults.summary.failed,
-  duration: evalResults.summary.duration
-}
-```
+> **Provenance:** After each gate result, append:
+> `{"event": "gate", "gate": "linter", "attempt": 1, "passed": true, "outputs": <gate JSON result>}`
+>
+> Use the actual gate name (`linter`, `tests`, `evals`, `code-review`) and current attempt number.
+> Set `passed` to `true` if the gate passed, `false` if it failed. Include the gate's JSON result in `outputs`.
 
-**If evals fail:**
-- Analyze failure reasons
-- Attempt fixes (max 3 attempts)
-- If still failing after 3 attempts:
-  - Option A: Create PR with `[NEEDS-REVIEW]` label
-  - Option B: Escalate to human
+> **Provenance:** Before each fix invocation, append:
+> `{"event": "fix_start", "attempt": 1, "timestamp": "<now ISO8601>"}`
+>
+> After each fix invocation completes, append:
+> `{"event": "fix_end", "attempt": 1, "success": true, "duration_ms": <elapsed ms>}`
+>
+> Use the current attempt number (1-3). Set `success` to `true` if the fix resolved all remaining failures, `false` otherwise.
 
-**Retry logic:**
-```javascript
-let attempt = 1
-const maxAttempts = 3
+**On success** (all gates pass within 3 attempts): proceed to Step 8.
 
-while (attempt <= maxAttempts) {
-  const results = await runEvals(issueKey)
-  
-  if (results.passed === results.total) {
-    // All passed!
-    break
-  }
-  
-  if (attempt < maxAttempts) {
-    // Analyze failures and fix
-    await analyzeFai lures(results.failures)
-    await applyFixes(results.failures)
-    attempt++
-  } else {
-    // Max attempts reached
-    throw new Error(`Evals failed after ${maxAttempts} attempts`)
-  }
-}
-```
+**On failure** (all 3 attempts exhausted with remaining failures):
+- If `--force-pr` flag: create PR with `[NEEDS-REVIEW]` label and failure summary
+- Otherwise: stop, report failures, ask human to intervene
+
+See `/verify-and-fix` skill for full loop logic, fix strategies, and output schema.
 
 ### Step 8: Create Pull Request
 
-If evals pass, use existing `/create-pr` skill:
+> **Provenance:** If `--provenance-file` provided, append:
+> `{"event": "step_start", "step": "create-pr", "timestamp": "<now ISO8601>"}`
+
+If `/verify-and-fix` passes, use existing `/create-pr` skill:
 
 ```bash
 /create-pr
@@ -432,24 +498,21 @@ Closes ABI-123
 - Applied rate limiting to all API endpoints
 - Added rate limit headers to responses
 
-## Eval Results
-✓ All acceptance criteria validated
+## Verification Results
+All gates passed after 2 attempts.
 
-**Functional Tests:** 4/4 passed
-- ✓ Rate limiting enforces 100 req/min
-- ✓ Rate limit headers included
-- ✓ 429 status on limit exceeded
-- ✓ Rate limit resets correctly
-
-**Performance Tests:** 2/2 passed
-- ✓ Latency < 10ms
-- ✓ Handles 1000 concurrent users
-
-**Quality Tests:** 2/2 passed
-- ✓ Coverage 85% (target: 80%)
-- ✓ Security scan passed
-
-Total: 8/8 tests passed ✓
+**Gate 1 — Linter:** ✅ No errors (auto-fixed 3 warnings on attempt 1)
+**Gate 2 — Existing Tests:** ✅ 47/47 passing — no regressions
+**Gate 3 — Evals (acceptance criteria):** ✅ 8/8 passed
+  - ✓ Rate limiting enforces 100 req/min
+  - ✓ Rate limit headers included
+  - ✓ 429 status on limit exceeded
+  - ✓ Rate limit resets correctly
+  - ✓ Latency < 10ms
+  - ✓ Handles 1000 concurrent users
+  - ✓ Coverage 85% (target: 80%)
+  - ✓ Security scan passed
+**Gate 4 — Code Review:** ✅ Approve — no blockers
 
 ## Testing
 \`\`\`bash
@@ -457,31 +520,23 @@ pytest tests/evals/ABI-123/ -v
 \`\`\`
 ```
 
-**If evals failed (and --force-pr used):**
+**If `/verify-and-fix` failed (and --force-pr used):**
 - Add `[NEEDS-REVIEW]` label
-- Include failure details in PR description
-- Request manual review
+- Include per-gate failure details in PR description
+- List fixes applied across all attempts
+- Request manual review for remaining failures
 
-### Step 9: Automated Code Review
+> **Provenance:** Append:
+> `{"event": "step_end", "step": "create-pr", "success": true, "duration_ms": <elapsed ms>, "output_preview": "<PR URL and number>"}`
 
-Run existing `/code-review` skill on the PR:
-
-```bash
-/code-review
-```
-
-Posts review comments:
-- Critical issues (bugs, security)
-- Warnings (code smells, performance)
-- Suggestions (style, readability)
-
-### Step 10: Update Jira
+### Step 9: Update Jira
 
 Use `/jira-update` to sync status:
 
 ```bash
 /jira-update ${issueKey} \
   --pr-url ${prUrl} \
+  --verification-passed ${verificationPassed} \
   --evals-passed ${evalsPassed} \
   --evals-total ${evalsTotal} \
   --status "In Review"
@@ -493,14 +548,27 @@ Adds comment to Jira:
 
 **Pull Request:** [PR #789](https://github.com/org/repo/pull/789)
 
-**Eval Results:** 8/8 passed ✓
+**Verification Results (2 attempts):**
+- ✅ Linter: No errors
+- ✅ Existing Tests: 47/47
+- ✅ Evals: 8/8 passed
+- ✅ Code Review: Approve
 
 All acceptance criteria validated through automated tests.
 
 **Next Steps:**
-- Code review in progress
 - Merge after approval
 ```
+
+> **Provenance:** After Step 9 completes (or after Step 8 if Step 9 is skipped), append the final event:
+> `{"event": "run_complete", "outcome": "success", "pr_url": "<url or null>", "timestamp": "<now ISO8601>"}`
+>
+> Set `outcome` based on the run result:
+> - `"success"` — all gates passed and PR was created
+> - `"partial"` — gates failed but PR was still created (e.g. `--force-pr` used)
+> - `"failed"` — no PR was created (gates failed without `--force-pr`, or a critical step errored)
+>
+> Set `pr_url` to the created PR URL, or `null` if no PR was created.
 
 ## Output
 
@@ -514,12 +582,15 @@ Timeline:
   ✓ Created implementation plan (45s)
   ✓ Generated evals (8s)
   ✓ Implemented solution (3m 24s)
-  ✓ Ran evals - 8/8 passed (15s)
+  ✓ Verify & Fix — all gates passed on attempt 2/3 (1m 48s)
+    ✓ Linter: No errors (auto-fixed 3 warnings on attempt 1)
+    ✓ Existing tests: 47/47
+    ✓ Evals: 8/8 passed
+    ✓ Code review: Approve — no blockers
   ✓ Created PR #789 (5s)
-  ✓ Automated code review (22s)
   ✓ Updated Jira (3s)
 
-Total time: 4 minutes 34 seconds
+Total time: 6 minutes 22 seconds
 
 **Pull Request:** https://github.com/EmergenceAI/em-talk2data/pull/789
 **Jira Issue:** https://company.atlassian.net/browse/ABI-123
@@ -527,7 +598,7 @@ Total time: 4 minutes 34 seconds
 Status: Ready for human review and merge
 ```
 
-### Partial Success (Evals Failed)
+### Partial Success (Verification Failed)
 
 ```markdown
 ⚠ Partially implemented ABI-123: Add API Rate Limiting
@@ -537,21 +608,23 @@ Timeline:
   ✓ Created implementation plan (45s)
   ✓ Generated evals (8s)
   ✓ Implemented solution (3m 24s)
-  ⚠ Ran evals - 6/8 passed (2 failed) (15s)
-  ⚠ Retried fixes - 7/8 passed (1 failed) (1m 30s)
-  ⚠ Max retry attempts reached
+  ⚠ Verify & Fix — exhausted 3/3 attempts (4m 12s)
+    ✓ Linter: No errors
+    ✓ Existing tests: 47/47
+    ⚠ Evals: 7/8 passed (1 failed)
+    ✓ Code review: Approve — no blockers
   ✓ Created PR #789 with [NEEDS-REVIEW] label (5s)
   ✓ Updated Jira (3s)
 
-Total time: 6 minutes 22 seconds
+Total time: 9 minutes 01 second
 
 **Pull Request:** https://github.com/EmergenceAI/em-talk2data/pull/789
 **Jira Issue:** https://company.atlassian.net/browse/ABI-123
 
-**Failed Evals:**
-- test_concurrent_users_performance: System degraded under 1000 users
+**Remaining Failures:**
+- Gate 3 (Evals): test_concurrent_users_performance — system degraded under 1000 users
 
-Status: Needs human review to address eval failures
+Status: Needs human review to address remaining failures
 ```
 
 ### Failure (Cannot Proceed)
@@ -586,37 +659,31 @@ pytest tests/evals/ABI-123/ -v
     "plan": { "duration": 45, "status": "completed" },
     "evalGen": { "duration": 8, "status": "completed" },
     "implement": { "duration": 204, "status": "completed" },
-    "evals": { 
-      "duration": 15, 
+    "verifyAndFix": {
+      "duration": 108,
       "status": "completed",
-      "passed": 8,
-      "failed": 0,
-      "total": 8
+      "passed": true,
+      "attempts": 2,
+      "gateResults": {
+        "linter": { "passed": true, "autoFixed": 3, "remainingErrors": 0 },
+        "existingTests": { "passed": true, "total": 47, "failures": [] },
+        "evals": { "passed": 8, "failed": 0, "total": 8 },
+        "codeReview": { "verdict": "Approve", "blockers": [] }
+      }
     },
-    "pr": { 
-      "duration": 5, 
+    "pr": {
+      "duration": 5,
       "status": "completed",
       "number": 789,
       "url": "https://github.com/org/repo/pull/789"
     },
-    "review": { "duration": 22, "status": "completed" },
     "jiraUpdate": { "duration": 3, "status": "completed" }
   },
-  "totalDuration": 274,
+  "totalDuration": 385,
   "pr": {
     "number": 789,
     "url": "https://github.com/org/repo/pull/789",
     "status": "open"
-  },
-  "evalResults": {
-    "passed": 8,
-    "failed": 0,
-    "total": 8,
-    "categories": {
-      "functional": { "passed": 4, "total": 4 },
-      "performance": { "passed": 2, "total": 2 },
-      "quality": { "passed": 2, "total": 2 }
-    }
   }
 }
 ```
@@ -633,20 +700,20 @@ JIRA_API_TOKEN=xxx
 # GitHub
 GITHUB_TOKEN=ghp_xxx
 
-# Eval settings
-EVAL_RETRY_LIMIT=3
-EVAL_TIMEOUT=300  # 5 minutes
-FORCE_PR_ON_EVAL_FAILURE=false
+# Verification loop settings (passed through to /verify-and-fix)
+VERIFY_RETRY_LIMIT=3       # Max full-loop attempts (default: 3)
+VERIFY_GATES=linter,tests,evals,review  # Gates to run (default: all)
+EVAL_TIMEOUT=300           # Seconds before eval run times out (default: 300)
+FORCE_PR_ON_EVAL_FAILURE=false  # Renamed from FORCE_PR_ON_EVAL_FAILURE; applies to any gate
 ```
 
 **Skill-specific settings:**
 ```json
 {
   "autonomous-implement": {
-    "maxRetries": 3,
+    "verifyRetryLimit": 3,
     "evalTimeout": 300,
     "forcePrOnFailure": false,
-    "skipCodeReview": false,
     "autoTransitionJira": true,
     "targetStatus": "In Review"
   }
@@ -677,21 +744,22 @@ Recommendation:
 2. Retry: /autonomous-implement ABI-123
 ```
 
-**Eval failures after max retries:**
+**Verification failures after max retries:**
 ```
-Warning: Evals failed after 3 attempts
+Warning: /verify-and-fix exhausted 3 attempts with remaining failures
 
-Failed tests:
-- test_concurrent_users_performance (performance degradation)
+Failed gates (final attempt):
+- Gate 3 (Evals): test_concurrent_users_performance — performance degradation
+- (Gates 1, 2, 4 all passed)
 
 Actions taken:
 - Created PR #789 with [NEEDS-REVIEW] label
-- Added failure details to PR description
+- Added per-gate failure details and all fixes applied to PR description
 - Updated Jira with partial completion status
 
 Next steps:
 - Review performance issue manually
-- Fix and re-run evals
+- Fix and re-run: /verify-and-fix ABI-123 --gates evals
 - Update PR when passing
 ```
 
@@ -713,10 +781,11 @@ const results = await pipeline(
 ## Success Criteria
 
 - [x] Composes existing skills correctly
-- [x] Generates and validates evals
-- [x] Retries on eval failures
-- [x] Creates PR only when evals pass (or with warning)
-- [x] Updates Jira with full context
+- [x] Generates evals from acceptance criteria
+- [x] Runs all 4 verification gates via `/verify-and-fix` before PR creation
+- [x] Retries with targeted fixes on any gate failure (max 3 attempts)
+- [x] Creates PR only when all gates pass (or with `[NEEDS-REVIEW]` label on failure)
+- [x] Updates Jira with full verification context
 - [x] Handles errors gracefully
 - [x] Provides clear progress updates
 - [x] Returns structured results
@@ -724,7 +793,8 @@ const results = await pipeline(
 ## Notes
 
 **Autonomy level:**
-- High autonomy: proceeds through all steps automatically
+- High autonomy: proceeds through all steps automatically **without asking for confirmation at any point**
+- Never pause to ask "Shall I proceed?", "Ready to implement?", "Should I commit?", or any similar confirmation — just do it
 - Eval-gated: only creates PR if evals pass
 - Escalation: alerts on failures after max retries
 
@@ -732,14 +802,13 @@ const results = await pipeline(
 - `/research-codebase` - Understanding context
 - `/create-plan` - Tech spec generation
 - `/implement-plan` - Code implementation
+- `/verify-and-fix` - Comprehensive verification loop (linter + tests + evals + code review)
 - `/create-pr` - PR creation
-- `/code-review` - Automated review
 
 **New components:**
 - `/eval-generator` - Test generation
-- Eval execution - pytest runner
+- `/verify-and-fix` - Unified 4-gate retry loop (replaces inline eval-only retry + standalone code review step)
 - `/jira-update` - Jira synchronization
-- Retry logic - Automated fix attempts
 
 **Performance:**
 - Typical time: 3-8 minutes per issue

@@ -31,7 +31,7 @@ claude --plugin-dir /path/to/EM-AISoftwareFactory
 
 ## Quick Start
 
-### Single Repository
+### Single Repository (Interactive)
 
 ```bash
 # 1. Install the plugin (see Installation above)
@@ -48,18 +48,30 @@ claude
 # That's it! Creates plan → implements → tests → PR → updates Jira
 ```
 
+### Fully Autonomous with Harness (Recommended)
+
+```bash
+# From the factory root — no human in the loop
+cd /path/to/em-aisoftwarefactory
+
+# Auto-routes, executes headlessly, writes provenance
+python -m harness implement SEMI-1413
+
+# Watch live progress in a terminal dashboard
+python -m harness tui
+
+# Reuse an existing branch instead of creating a new one
+python -m harness implement SEMI-1413 --branch observability-healthchecks
+```
+
 ### Multi-Repository with Orchestrator
 
 ```bash
-# 1. Install the plugin (see Installation above)
-
-# 2. From workspace root
+# From workspace root — generates instructions for Claude Code
 cd /path/to/em-aisoftwarefactory
 
-# 3. Auto-routes to correct repository and injects knowledge
 python3 -m orchestrator implement SEMI-1413
-
-# 4. Follow the printed instructions in Claude Code
+# Then follow the printed instructions in Claude Code
 ```
 
 ---
@@ -72,7 +84,7 @@ An **Engineering OS** that provides:
 - **Multi-Repo Orchestration** - Auto-routes issues to 5 repositories  
 - **Knowledge-Driven** - Applies repo-specific patterns automatically  
 - **Quality Enforced** - 80% coverage, air-gapped, foundations standards  
-- **80% Autonomous** - Strategic checkpoints only (plan, PR)
+- **Fully Autonomous** - Headless execution with no human in the loop (harness mode)
 
 ---
 
@@ -83,7 +95,8 @@ An **Engineering OS** that provides:
 | Guide | Description |
 |-------|-------------|
 | **[Quickstart](docs/guides/QUICKSTART.md)** | Get started |
-| **[Orchestrator Usage](#orchestrator-usage)** | Single & multi-repo |
+| **[Harness](#harness)** | Autonomous headless execution |
+| **[Orchestrator Usage](#orchestrator-usage)** | Single & multi-repo (interactive) |
 | **[Skills Reference](#skills-reference)** | All available skills |
 | **[Knowledge System](#knowledge-system)** | Architecture, ADRs, patterns |
 
@@ -194,6 +207,93 @@ python3 -m orchestrator multi-repo SEMI-1413 T2D-890 RT-567
 #  RT-567 → em-runtime
 # 
 # Generated 3 instruction sets (see /tmp/orchestrator_instructions_*.sh)
+```
+
+---
+
+## Harness
+
+The harness is the **autonomous execution layer** — it runs `claude -p` headlessly, routes issues to the right repository, enforces quality gates, and records every step to provenance logs. Use it when you want zero human interaction.
+
+The orchestrator (below) is the lighter predecessor: it generates instruction sets that you then paste into an interactive Claude Code session. The harness replaces that manual step entirely.
+
+### Implement a Single Issue
+
+```bash
+# Auto-route and implement
+python -m harness implement SEMI-1413
+
+# Explicit repository
+python -m harness implement SEMI-1413 --repo semi
+
+# Reuse an existing branch (skips branch creation)
+python -m harness implement SEMI-1413 --branch observability-healthchecks
+
+# Retry gate failures up to N times
+python -m harness implement SEMI-1413 --max-gate-attempts 3
+
+# Auto-merge PR when all gates pass
+python -m harness implement SEMI-1413 --auto-merge
+```
+
+### Live Dashboard
+
+```bash
+# Full-screen terminal dashboard — shows active runs, gate status, recent outcomes
+python -m harness tui
+
+# Tail live events for a specific run
+python -m harness watch run_1234567890_abcd1234
+```
+
+### Run Management
+
+```bash
+# Show active and queued runs
+python -m harness queue
+
+# Cancel a running job
+python -m harness cancel run_1234567890_abcd1234
+
+# Resume a run from its last checkpoint
+python -m harness resume run_1234567890_abcd1234
+```
+
+### Provenance & Observability
+
+Provenance logs every event (gate result, step output, reward signal) under `provenance/`. Use these to track success rates and export training data.
+
+```bash
+# Aggregate stats — success rate, gate failure rates
+python -m harness provenance stats
+
+# List recent runs with outcomes and rewards
+python -m harness provenance runs
+
+# Export RL training dataset
+python -m harness provenance export --output provenance/rl_dataset.json
+
+# Cost breakdown by repo and step
+python -m harness cost --days 7
+
+# List recent runs with filters
+python -m harness runs --repo semi --outcome failed
+```
+
+### Circuit Breaker
+
+Gates use a circuit breaker to avoid retrying a permanently broken step. If a gate trips, inspect and reset manually:
+
+```bash
+python -m harness circuit-breaker status
+python -m harness circuit-breaker reset <gate-name>
+```
+
+### Observability Server
+
+```bash
+# Start the background observability server (used by the TUI)
+python -m harness server
 ```
 
 ---
@@ -414,12 +514,15 @@ export JIRA_API_TOKEN=your_api_token
 ### Implement Single Issue
 
 ```bash
-# Quick (no orchestrator)
-cd /path/to/your/repo && /autonomous-implement SEMI-1413
+# Fully autonomous (recommended)
+python -m harness implement SEMI-1413
 
-# Full (with knowledge)
+# Interactive — navigate to repo first
+cd /path/to/your/repo && claude
+/autonomous-implement SEMI-1413
+
+# Orchestrator — generates instructions to paste into Claude Code
 python3 -m orchestrator implement SEMI-1413
-# Follow instructions
 ```
 
 ### Implement Sprint

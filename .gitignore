@@ -217,3 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .claude/settings.local.json
+
+# Provenance runtime state
+provenance/circuit_breakers.json
+provenance/*.jsonl

@@ -1,0 +1,273 @@
+"""
+Reporter - Generates reports from execution results.
+
+The reporter:
+1. Aggregates execution results
+2. Generates sprint reports
+3. Creates PR descriptions
+4. Updates Jira issues
+5. Posts to Confluence (optional)
+"""
+
+from typing import Dict, List
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
+from .executor import ExecutionResult, TaskResult
+
+
+class Reporter:
+    """Generates reports from execution results."""
+
+    def __init__(self, factory_root: Path, workspace_config: Dict):
+        """
+        Initialize reporter.
+
+        Args:
+            factory_root: Factory root directory
+            workspace_config: Loaded workspace.yaml
+        """
+        self.factory_root = Path(factory_root)
+        self.workspace_config = workspace_config
+        self.reports_dir = self.factory_root / 'reports'
+        self.reports_dir.mkdir(exist_ok=True)
+
+    def generate_sprint_report(
+        self,
+        sprint_name: str,
+        results: List[ExecutionResult]
+    ) -> str:
+        """
+        Generate sprint summary report.
+
+        Args:
+            sprint_name: Sprint name
+            results: List of execution results
+
+        Returns:
+            Markdown report
+        """
+        # Calculate statistics
+        total_issues = len(results)
+        successful = sum(1 for r in results if r.overall_success)
+        failed = total_issues - successful
+
+        total_duration = sum(r.total_duration_seconds for r in results)
+        avg_duration = total_duration / total_issues if total_issues > 0 else 0
+
+        # Group by repository
+        repos_touched = set()
+        for result in results:
+            for task in result.tasks:
+                repos_touched.add(task.repository)
+
+        # Build report
+        report_lines = [
+            f"# Sprint Report: {sprint_name}",
+            "",
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            "",
+            "## Summary",
+            "",
+            f"- **Total Issues:** {total_issues}",
+            f"- **Successful:** {successful} ✅",
+            f"- **Failed:** {failed} ❌",
+            f"- **Success Rate:** {(successful/total_issues*100):.1f}%",
+            f"- **Total Duration:** {self._format_duration(total_duration)}",
+            f"- **Average per Issue:** {self._format_duration(avg_duration)}",
+            f"- **Repositories Touched:** {', '.join(sorted(repos_touched))}",
+            "",
+            "## Issues",
+            ""
+        ]
+
+        # Successful issues
+        if successful > 0:
+            report_lines.append("### ✅ Successful")
+            report_lines.append("")
+            for result in results:
+                if result.overall_success:
+                    report_lines.extend(self._format_issue_summary(result))
+
+        # Failed issues
+        if failed > 0:
+            report_lines.append("### ❌ Failed")
+            report_lines.append("")
+            for result in results:
+                if not result.overall_success:
+                    report_lines.extend(self._format_issue_summary(result))
+
+        report = "\n".join(report_lines)
+
+        # Save to file
+        report_path = self.reports_dir / f"sprint-{sprint_name.lower().replace(' ', '-')}.md"
+        report_path.write_text(report)
+        print(f"Sprint report saved to: {report_path}")
+
+        return report
+
+    def generate_pr_description(self, result: ExecutionResult) -> str:
+        """
+        Generate PR description from execution result.
+
+        Args:
+            result: Execution result
+
+        Returns:
+            Markdown PR description
+        """
+        # Find the main task (usually just one repo per issue)
+        main_task = result.tasks[0] if result.tasks else None
+
+        if not main_task:
+            return "No implementation details available."
+
+        lines = [
+            f"## {main_task.issue_key}",
+            "",
+            "### Summary",
+            "",
+            "Automated implementation by Engineering OS.",
+            "",
+            "### Implementation Steps",
+            ""
+        ]
+
+        # List phases executed
+        for step_result in main_task.steps:
+            status = "✅" if step_result.success else "❌"
+            lines.append(f"- {status} **{step_result.phase.title()}**")
+            if step_result.error:
+                lines.append(f"  - Error: {step_result.error}")
+
+        lines.extend([
+            "",
+            "### Testing",
+            "",
+            "- [ ] Manual testing completed",
+            "- [ ] All tests passing",
+            "- [ ] Documentation updated",
+            "",
+            "### Metrics",
+            "",
+            f"- **Repository:** {main_task.repository}",
+            f"- **Duration:** {self._format_duration(main_task.duration_seconds)}",
+            f"- **Success:** {'Yes' if main_task.success else 'No'}",
+            "",
+            "---",
+            "",
+            "🤖 Generated by [Engineering OS](https://github.com/EmergenceAI/EM-AISoftwareFactory)"
+        ])
+
+        return "\n".join(lines)
+
+    def generate_task_report(self, result: ExecutionResult) -> str:
+        """
+        Generate detailed task execution report.
+
+        Args:
+            result: Execution result
+
+        Returns:
+            Markdown report
+        """
+        lines = [
+            f"# Task Report: {result.issue_key}",
+            "",
+            f"**Status:** {'✅ Success' if result.overall_success else '❌ Failed'}",
+            f"**Duration:** {self._format_duration(result.total_duration_seconds)}",
+            "",
+            "## Tasks",
+            ""
+        ]
+
+        for task in result.tasks:
+            lines.extend([
+                f"### {task.repository}",
+                "",
+                f"**Status:** {'✅ Success' if task.success else '❌ Failed'}",
+                f"**Duration:** {self._format_duration(task.duration_seconds)}",
+                ""
+            ])
+
+            if task.branch_name:
+                lines.append(f"**Branch:** `{task.branch_name}`")
+            if task.pr_url:
+                lines.append(f"**PR:** {task.pr_url}")
+
+            if task.error:
+                lines.extend([
+                    "",
+                    "**Error:**",
+                    f"```\n{task.error}\n```",
+                    ""
+                ])
+
+            lines.extend([
+                "",
+                "#### Steps",
+                ""
+            ])
+
+            for step in task.steps:
+                status = "✅" if step.success else "❌"
+                lines.append(f"- {status} **{step.phase}** ({self._format_duration(step.duration_seconds)})")
+                if step.error:
+                    lines.append(f"  - Error: {step.error}")
+
+            lines.append("")
+
+        return "\n".join(lines)
+
+    # Private methods
+
+    def _format_issue_summary(self, result: ExecutionResult) -> List[str]:
+        """Format issue summary for report."""
+        lines = [f"**{result.issue_key}**"]
+
+        for task in result.tasks:
+            status = "✅" if task.success else "❌"
+            duration = self._format_duration(task.duration_seconds)
+            lines.append(f"  - {status} {task.repository} ({duration})")
+            if task.pr_url:
+                lines.append(f"    - PR: {task.pr_url}")
+            if task.error:
+                lines.append(f"    - Error: {task.error[:100]}...")
+
+        lines.append("")
+        return lines
+
+    def _format_duration(self, seconds: float) -> str:
+        """Format duration in human-readable form."""
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        elif seconds < 3600:
+            minutes = seconds / 60
+            return f"{minutes:.1f}m"
+        else:
+            hours = seconds / 3600
+            return f"{hours:.1f}h"
+
+
+# Convenience function
+def generate_sprint_report(
+    factory_root: Path,
+    workspace_config: Dict,
+    sprint_name: str,
+    results: List[ExecutionResult]
+) -> str:
+    """
+    Convenience function to generate sprint report.
+
+    Args:
+        factory_root: Factory root directory
+        workspace_config: Workspace configuration
+        sprint_name: Sprint name
+        results: Execution results
+
+    Returns:
+        Markdown report
+    """
+    reporter = Reporter(factory_root, workspace_config)
+    return reporter.generate_sprint_report(sprint_name, results)
