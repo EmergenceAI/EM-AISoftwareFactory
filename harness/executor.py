@@ -348,6 +348,7 @@ class Executor:
         circuit_breaker: CircuitBreaker,
         server_call,
         branch: Optional[str] = None,
+        spec_file: Optional[str] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
@@ -376,6 +377,7 @@ class Executor:
                 foundations_standards=foundations.get('standards', ''),
                 repo_config=repo_config,
                 repo_path=repo_path,
+                spec_file=spec_file,
             )
 
             monitor = EventMonitor(
@@ -390,11 +392,23 @@ class Executor:
             )
             monitor.start(events_path)
 
-            prompt = (
-                f"/autonomous-implement {issue_key}"
-                f" --context-file {context_file}"
-                f" --provenance-file {events_path}"
-            )
+            # Use /implement-workflow when a spec file is provided; otherwise /autonomous-implement
+            if spec_file:
+                skill_name = "implement-workflow"
+                prompt = (
+                    f"/{skill_name} --spec-file {spec_file}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
+                if issue_key and issue_key != "SPEC-LOCAL":
+                    prompt += f" --jira-key {issue_key}"
+            else:
+                skill_name = "autonomous-implement"
+                prompt = (
+                    f"/{skill_name} {issue_key}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
             if branch:
                 prompt += f" --branch {branch}"
             cmd = [
@@ -553,6 +567,7 @@ class Executor:
         foundations_standards: str,
         repo_config: Dict,
         repo_path: Path,
+        spec_file: Optional[str] = None,
     ) -> Path:
         """
         Create knowledge context file inside the target repo directory.
@@ -568,6 +583,23 @@ class Executor:
         Returns:
             Path to temporary context file
         """
+        # Inject spec file content if provided
+        spec_section = ""
+        if spec_file:
+            try:
+                spec_content = Path(spec_file).read_text()
+                spec_section = f"""
+---
+
+## Workflow Specification (primary task description)
+
+{spec_content}
+
+---
+"""
+            except Exception:
+                spec_section = ""
+
         context = f"""# Repository Knowledge Context
 # This context is automatically injected by the harness
 
@@ -575,7 +607,7 @@ class Executor:
 **Display Name:** {repo_config.get('display_name', repo_config['name'])}
 **Language:** {repo_config.get('language', 'unknown')}
 **Build System:** {repo_config.get('build_system', 'unknown')}
-
+{spec_section}
 ---
 
 ## Architecture
@@ -587,6 +619,12 @@ class Executor:
 ## Coding Patterns
 
 {knowledge_context.get('patterns', 'No coding patterns documented.')}
+
+---
+
+## Output Style (charts and reports)
+
+{knowledge_context.get('output_style', 'See output_style.md for chart conventions.')}
 
 ---
 
@@ -630,23 +668,30 @@ When implementing this issue:
         self,
         issue_key: str,
         context_file: Path,
-        repo_path: Path
+        repo_path: Path,
+        spec_file: Optional[str] = None,
     ) -> Dict:
         """
-        Invoke /autonomous-implement skill by shelling out to the claude CLI.
+        Invoke the appropriate skill by shelling out to the claude CLI.
 
-        Runs claude headlessly (-p) with the factory plugin dir so all skills
-        are available, then passes the skill invocation as the initial prompt.
+        Routes to /implement-workflow when spec_file is provided,
+        otherwise falls back to /autonomous-implement.
 
         Args:
-            issue_key: Jira issue key
+            issue_key: Jira issue key (or SPEC-LOCAL placeholder)
             context_file: Path to knowledge context file (persists until skill completes)
             repo_path: Repository path (used as cwd for the claude process)
+            spec_file: Optional path to a workflow spec .md file
 
         Returns:
             Execution result dictionary
         """
-        prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
+        if spec_file:
+            prompt = f"/implement-workflow --spec-file {spec_file} --context-file {context_file}"
+            if issue_key and issue_key != "SPEC-LOCAL":
+                prompt += f" --jira-key {issue_key}"
+        else:
+            prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
 
         cmd = [
             'claude',
@@ -655,9 +700,13 @@ When implementing this issue:
             '-p', prompt,
         ]
 
-        print(f"\n🚀 Launching claude to implement {issue_key} in {repo_path.name}...")
-        print(f"   Plugin: {self.factory_root}")
-        print(f"   Context: {context_file}\n")
+        skill_label = "implement-workflow" if spec_file else f"implement {issue_key}"
+        print(f"\n🚀 Launching claude to {skill_label} in {repo_path.name}...")
+        print(f"   Plugin:  {self.factory_root}")
+        print(f"   Context: {context_file}")
+        if spec_file:
+            print(f"   Spec:    {spec_file}")
+        print()
 
         try:
             result = subprocess.run(
