@@ -349,6 +349,7 @@ class Executor:
         server_call,
         branch: Optional[str] = None,
         spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
@@ -378,6 +379,7 @@ class Executor:
                 repo_config=repo_config,
                 repo_path=repo_path,
                 spec_file=spec_file,
+                prototype_dir=prototype_dir,
             )
 
             monitor = EventMonitor(
@@ -392,15 +394,30 @@ class Executor:
             )
             monitor.start(events_path)
 
-            # Use /implement-workflow when a spec file is provided; otherwise /autonomous-implement
-            if spec_file:
+            # Skill routing:
+            #   prototype (with or without spec) → /integrate-prototype
+            #   spec only                        → /implement-workflow
+            #   neither                          → /autonomous-implement
+            _is_local = lambda k: k in ("SPEC-LOCAL", "PROTO-LOCAL")
+            if prototype_dir:
+                skill_name = "integrate-prototype"
+                prompt = (
+                    f"/{skill_name} --prototype-dir {prototype_dir}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
+                if spec_file:
+                    prompt += f" --spec-file {spec_file}"
+                if issue_key and not _is_local(issue_key):
+                    prompt += f" --jira-key {issue_key}"
+            elif spec_file:
                 skill_name = "implement-workflow"
                 prompt = (
                     f"/{skill_name} --spec-file {spec_file}"
                     f" --context-file {context_file}"
                     f" --provenance-file {events_path}"
                 )
-                if issue_key and issue_key != "SPEC-LOCAL":
+                if issue_key and not _is_local(issue_key):
                     prompt += f" --jira-key {issue_key}"
             else:
                 skill_name = "autonomous-implement"
@@ -568,6 +585,7 @@ class Executor:
         repo_config: Dict,
         repo_path: Path,
         spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
     ) -> Path:
         """
         Create knowledge context file inside the target repo directory.
@@ -600,6 +618,24 @@ class Executor:
             except Exception:
                 spec_section = ""
 
+        # Inject prototype source files if provided
+        # Each .py file is included in full so the skill can read analysis logic,
+        # identify m_* function boundaries, data loading patterns, and chart code.
+        prototype_section = ""
+        if prototype_dir:
+            proto_path = Path(prototype_dir)
+            py_files = sorted(proto_path.glob("**/*.py"))
+            parts = ["\n---\n\n## Prototype Source Files\n\nThe following Python files are the prototype to be integrated into em-semi.\n"]
+            for f in py_files:
+                try:
+                    src = f.read_text()
+                    rel = f.relative_to(proto_path)
+                    parts.append(f"\n### `{rel}`\n\n```python\n{src}\n```\n")
+                except Exception:
+                    pass
+            parts.append("\n---\n")
+            prototype_section = "\n".join(parts)
+
         context = f"""# Repository Knowledge Context
 # This context is automatically injected by the harness
 
@@ -607,7 +643,7 @@ class Executor:
 **Display Name:** {repo_config.get('display_name', repo_config['name'])}
 **Language:** {repo_config.get('language', 'unknown')}
 **Build System:** {repo_config.get('build_system', 'unknown')}
-{spec_section}
+{spec_section}{prototype_section}
 ---
 
 ## Architecture
@@ -670,25 +706,36 @@ When implementing this issue:
         context_file: Path,
         repo_path: Path,
         spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
     ) -> Dict:
         """
         Invoke the appropriate skill by shelling out to the claude CLI.
 
-        Routes to /implement-workflow when spec_file is provided,
-        otherwise falls back to /autonomous-implement.
+        Routing:
+          prototype (±spec) → /integrate-prototype
+          spec only         → /implement-workflow
+          neither           → /autonomous-implement
 
         Args:
-            issue_key: Jira issue key (or SPEC-LOCAL placeholder)
+            issue_key: Jira issue key (or PROTO-LOCAL / SPEC-LOCAL placeholder)
             context_file: Path to knowledge context file (persists until skill completes)
             repo_path: Repository path (used as cwd for the claude process)
             spec_file: Optional path to a workflow spec .md file
+            prototype_dir: Optional path to a directory of prototype .py files
 
         Returns:
             Execution result dictionary
         """
-        if spec_file:
+        _is_local = lambda k: k in ("SPEC-LOCAL", "PROTO-LOCAL")
+        if prototype_dir:
+            prompt = f"/integrate-prototype --prototype-dir {prototype_dir} --context-file {context_file}"
+            if spec_file:
+                prompt += f" --spec-file {spec_file}"
+            if issue_key and not _is_local(issue_key):
+                prompt += f" --jira-key {issue_key}"
+        elif spec_file:
             prompt = f"/implement-workflow --spec-file {spec_file} --context-file {context_file}"
-            if issue_key and issue_key != "SPEC-LOCAL":
+            if issue_key and not _is_local(issue_key):
                 prompt += f" --jira-key {issue_key}"
         else:
             prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
@@ -700,12 +747,19 @@ When implementing this issue:
             '-p', prompt,
         ]
 
-        skill_label = "implement-workflow" if spec_file else f"implement {issue_key}"
+        if prototype_dir:
+            skill_label = "integrate-prototype"
+        elif spec_file:
+            skill_label = "implement-workflow"
+        else:
+            skill_label = f"implement {issue_key}"
         print(f"\n🚀 Launching claude to {skill_label} in {repo_path.name}...")
-        print(f"   Plugin:  {self.factory_root}")
-        print(f"   Context: {context_file}")
+        print(f"   Plugin:    {self.factory_root}")
+        print(f"   Context:   {context_file}")
+        if prototype_dir:
+            print(f"   Prototype: {prototype_dir}")
         if spec_file:
-            print(f"   Spec:    {spec_file}")
+            print(f"   Spec:      {spec_file}")
         print()
 
         try:
