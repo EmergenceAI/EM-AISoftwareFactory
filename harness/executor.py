@@ -618,19 +618,64 @@ class Executor:
             except Exception:
                 spec_section = ""
 
-        # Inject prototype source files if provided
-        # Each .py file is included in full so the skill can read analysis logic,
-        # identify m_* function boundaries, data loading patterns, and chart code.
+        # Inject prototype source files if provided.
+        # Files under INLINE_THRESHOLD are injected in full; larger files get a
+        # structural summary (module docstring + function signatures) so the context
+        # stays manageable. The skill can Read the full file at its absolute path.
+        INLINE_THRESHOLD = 40_000  # bytes — ~1000 lines
         prototype_section = ""
         if prototype_dir:
             proto_path = Path(prototype_dir)
             py_files = sorted(proto_path.glob("**/*.py"))
-            parts = ["\n---\n\n## Prototype Source Files\n\nThe following Python files are the prototype to be integrated into em-semi.\n"]
-            for f in py_files:
+            parts = [
+                "\n---\n\n## Prototype Source Files\n\n"
+                f"Prototype directory: `{prototype_dir}`\n\n"
+                "Files marked **[FULL SOURCE]** are injected in full. "
+                "Files marked **[SUMMARY ONLY]** are large — use the `Read` tool "
+                "on their absolute path to access the full source during skill execution.\n"
+            ]
+            for f in sorted(py_files, key=lambda x: x.stat().st_size):
                 try:
                     src = f.read_text()
                     rel = f.relative_to(proto_path)
-                    parts.append(f"\n### `{rel}`\n\n```python\n{src}\n```\n")
+                    size_kb = f.stat().st_size / 1024
+                    if f.stat().st_size <= INLINE_THRESHOLD:
+                        parts.append(f"\n### `{rel}` — {size_kb:.0f} KB [FULL SOURCE]\n\n```python\n{src}\n```\n")
+                    else:
+                        # Extract: module docstring + all def/class signatures
+                        import ast, textwrap
+                        summary_lines = []
+                        try:
+                            tree = ast.parse(src)
+                            # module docstring
+                            if (isinstance(tree.body[0], ast.Expr) and
+                                    isinstance(tree.body[0].value, ast.Constant)):
+                                doc = textwrap.shorten(tree.body[0].value.s, width=400, placeholder="...")
+                                summary_lines.append(f'"""{doc}"""\n')
+                            # top-level constants (UPPER_CASE assignments)
+                            for node in tree.body:
+                                if isinstance(node, ast.Assign):
+                                    for t in node.targets:
+                                        if isinstance(t, ast.Name) and t.id.isupper():
+                                            line = src.splitlines()[node.lineno - 1].strip()
+                                            summary_lines.append(line)
+                            # function and class signatures
+                            for node in ast.walk(tree):
+                                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                                    sig = src.splitlines()[node.lineno - 1].strip()
+                                    fdoc = ast.get_docstring(node)
+                                    fdoc_short = textwrap.shorten(fdoc, width=120, placeholder="...") if fdoc else ""
+                                    summary_lines.append(f"{sig}")
+                                    if fdoc_short:
+                                        summary_lines.append(f'    """{fdoc_short}"""')
+                        except Exception:
+                            summary_lines = src.splitlines()[:60]
+                        summary = "\n".join(summary_lines)
+                        parts.append(
+                            f"\n### `{rel}` — {size_kb:.0f} KB [SUMMARY ONLY]\n"
+                            f"**Full path:** `{f.resolve()}`  — use `Read` tool to access full source.\n\n"
+                            f"```python\n{summary}\n```\n"
+                        )
                 except Exception:
                     pass
             parts.append("\n---\n")
