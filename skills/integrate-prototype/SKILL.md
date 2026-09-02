@@ -229,19 +229,100 @@ Create `workflow/app/tasks/<workflow_snake_case>.py`.
 
 One `@semi_task` per logical phase identified in Step 1. The task:
 1. Calls `get_flow_context()` to get db/storage/workspace
-2. Does the plumbing swap (data loading)
-3. Calls the verbatim core function(s)
+2. **Swaps data loading to Iceberg** (see below — this is mandatory, not optional)
+3. Calls the verbatim core analysis function(s)
 4. Returns results as a dict
 
-### Plumbing swap rules
+### The plumbing boundary — this is the most important rule
+
+**Do NOT treat data loading functions as untouchable analysis.** The boundary is:
+
+| Type | Rule | Examples in WF2 |
+|---|---|---|
+| **Analysis (untouchable)** | Statistical logic, guards, ranking, chart computation | `m_high_low`, `m_parametric_contrast`, `m_capability`, `m_drift`, `m_spatial` |
+| **Plumbing (swap to Iceberg)** | Anything reading files, CSVs, parquet, or object storage | `load_wafer_sort`, `load_wat`, `load_mon`, `load_dataset`, `pd.read_csv`, `pd.read_parquet` |
+
+The `m_*` analysis functions take a `Dataset`/`DataFrame` object — they do not care how it was built.
+The `load_*` functions build that object from files. **Replace the file reads with Iceberg queries.**
+The `Dataset` object itself (the dataclass/class) is fine to keep — just populate it from Iceberg instead of CSVs.
+
+### Iceberg data loading — mandatory for all prototype integrations
+
+**Invoke `/iceberg-data-adapter` as a sub-step before writing tasks.** It maps the
+prototype's CSV column names to the canonical Iceberg schema and generates the query code.
+
+If running without the sub-skill, follow this pattern manually:
+
+```python
+from app.data_views.factory import create_iceberg_data_view
+from app.flows.base import semi_task, get_flow_context
+
+@semi_task(auto_clean=False, name="<workflow>_load_data")
+async def load_data(product_id: str, start_date: str | None, end_date: str | None) -> dict:
+    context = get_flow_context()
+    log = get_logger(component="workflow.<name>.load_data")
+
+    # Build Iceberg data view (replaces all pd.read_csv / pd.read_parquet calls)
+    data_view = create_iceberg_data_view(
+        db=context.db,
+        product_id=product_id,
+        date_range=(start_date, end_date) if start_date else None,
+        lot_ids=None,
+    )
+
+    # Pull wafer-sort data (replaces load_wafer_sort / PRR.csv + HBR.csv + SBR.csv)
+    # Columns: lot_id, wafer_id, die_x, die_y, pass_flag, bin_number, bin_name, test_date, site_num
+    prr_df = await asyncio.to_thread(
+        data_view.get_wafer_sort_summary          # or get_die_results for die-level
+    )
+
+    # Pull parametric data (replaces load_mon / PTR.csv)
+    # Columns: lot_id, wafer_id, die_x, die_y, param_name, value, site_num, lo_limit, hi_limit
+    ptr_df = await asyncio.to_thread(
+        data_view.get_parametric_results
+    )
+
+    # Pull WAT data (replaces load_wat / WAT.csv)
+    # Columns: lot_id, wafer_id, parameter_name, value, site_num, lower_limit, upper_limit
+    wat_df = await asyncio.to_thread(
+        data_view.get_wafer_acceptance_results
+    )
+
+    # Build the Dataset object the core analysis expects — same class, Iceberg data
+    from app.<workflow_snake_case>.core import Dataset
+    ds = Dataset(prr=prr_df, ptr=ptr_df, wat=wat_df, name=product_id)
+
+    # Now call core analysis verbatim
+    from app.<workflow_snake_case>.core import m_ingestion
+    R = {}
+    m_ingestion(ds, R)
+
+    # Pickle Dataset for downstream tasks (DataFrames don't serialise through Prefect)
+    import pickle
+    pkl_path = context.workspace_dir / "dataset.pkl"
+    pkl_path.write_bytes(pickle.dumps(ds))
+    log.info("data_loaded", lots=len(prr_df["lot_id"].unique()), wafers=len(prr_df))
+    return {"ds_pkl": str(pkl_path), "R": R}
+```
+
+**Column name mapping — prototype CSV → Iceberg:**
+
+| Prototype CSV file | Iceberg table | Key column differences |
+|---|---|---|
+| `PRR.csv` | `wafer_sort` | `PART_FLG` → `pass_flag`; `HARD_BIN` → `bin_number`; `X_COORD`/`Y_COORD` → `die_x`/`die_y` |
+| `PTR.csv` (in-die monitors / LibPM) | `wafer_sort` parametric | `TEST_TXT` → `param_name`; `RESULT` → `value`; `LO_LIMIT`/`HI_LIMIT` preserved |
+| `WAT.csv` / `PCM` | `wafer_acceptance` | `parameter_name`, `value`, `site_num`; `lower_limit`/`upper_limit` |
+| `HBR.csv` / `SBR.csv` | aggregated from `wafer_sort` | bin counts computed from die-level `bin_number` |
+
+Always read `common_semi/data/iceberg_schema.py` for the authoritative column list before writing queries.
+
+### Other plumbing swap rules
 
 | Prototype pattern | em-semi replacement |
 |---|---|
-| `pd.read_parquet("path/data.parquet")` | DuckDB Iceberg query via `context.db` — use the Iceberg schema from `common_semi/data/iceberg_schema.py` |
-| `pd.read_csv("path/WAT.csv")` | Iceberg WAT table query via `context.db` |
 | `open("output/results.json")` | `context.workspace_dir / "results.json"` |
-| `os.makedirs("output/charts")` | `context.workspace_dir / "charts"` — already exists, created by `@semi_flow` |
-| `make_storage()` / custom storage | `context.storage` |
+| `os.makedirs("output/charts")` | `context.workspace_dir / "charts"` |
+| `make_storage()` / custom storage client | `context.storage` |
 | `print("step done")` | `log.info("step_done", key=value)` |
 | Top-of-file config constants | `context.config.extra_config.get("HIGH_LOW_PCT", 0.10)` |
 
