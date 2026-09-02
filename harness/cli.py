@@ -150,12 +150,20 @@ def cmd_implement(args):
     factory_root = Path(__file__).parent.parent
 
     issue_key = args.issue_key or "PROTO-LOCAL"  # placeholder when no Jira key given
+    workflow_name = getattr(args, 'workflow_name', None)
+    if workflow_name and workflow_name != workflow_name.upper():
+        print(f"⚠️   --workflow-name should be UPPER_SNAKE_CASE (got: {workflow_name})")
+        workflow_name = workflow_name.upper().replace("-", "_").replace(" ", "_")
+        print(f"    Normalised to: {workflow_name}")
+
     if args.issue_key:
-        print(f"📋 Issue:     {args.issue_key}")
+        print(f"📋 Issue:         {args.issue_key}")
     if spec_file:
-        print(f"📄 Spec:      {spec_file}")
+        print(f"📄 Spec:          {spec_file}")
     if prototype_dir:
-        print(f"📦 Prototype: {prototype_dir}")
+        print(f"📦 Prototype:     {prototype_dir}")
+    if workflow_name:
+        print(f"🏷️  Workflow name: {workflow_name}")
     repository = _resolve_repository(args, workspace_config)
     print()
 
@@ -201,6 +209,7 @@ def cmd_implement(args):
             branch=getattr(args, 'branch', None),
             spec_file=spec_file,
             prototype_dir=prototype_dir,
+            workflow_name=workflow_name,
         )
 
         watchdog.stop()
@@ -808,6 +817,18 @@ Examples:
             '(3) wraps analysis logic into @semi_flow/@semi_task, '
             '(4) converts charts to Plotly em-semi house style, '
             '(5) creates a PR. issue_key and --spec are both optional.'
+        ),
+    )
+    implement.add_argument(
+        '--workflow-name',
+        default=None,
+        metavar='NAME',
+        dest='workflow_name',
+        help=(
+            'Override the workflow name derived from the prototype (UPPER_SNAKE_CASE). '
+            'Useful for testing full integration with an existing prototype under a new name, '
+            'or for creating a variant of an existing workflow. '
+            'Example: --workflow-name YIELD_PROCESS_INSIGHTS_V2'
         ),
     )
     implement.add_argument(

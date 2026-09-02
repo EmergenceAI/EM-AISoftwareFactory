@@ -40,6 +40,7 @@ style, wire up data loading to `context.db` / Iceberg, and create a PR.
 ### Parameters
 
 - `--prototype-dir <path>` (required): directory containing prototype `.py` files
+- `--workflow-name <NAME>` (optional): UPPER_SNAKE_CASE name override — use this to integrate an existing prototype under a new name (e.g. for testing or creating a variant). When provided, skips name derivation in Step 2 and uses this value directly for the enum entry, deployment name, branch slug, and package directory name.
 - `--spec-file <path>` (optional): pre-written workflow spec `.md`; if absent the skill derives one
 - `--jira-key <key>` (optional): Jira issue key for PR linking and status update
 - `--context-file <path>` (optional): harness-injected knowledge context (patterns, output style)
@@ -114,7 +115,20 @@ Emit provenance event: `{"event": "step_complete", "step": "map_prototype", "fun
 
 ---
 
-## Step 2 — Derive Spec from Code (skip if --spec-file provided)
+## Step 2 — Determine Workflow Name and Derive Spec
+
+**Workflow name resolution (in priority order):**
+1. `--workflow-name` flag provided → use it exactly as-is (UPPER_SNAKE_CASE)
+2. `--spec-file` provided → read `workflow_name` from frontmatter
+3. Neither → derive from module docstring title or prototype dir name (convert to UPPER_SNAKE_CASE)
+
+Derive `workflow_snake_case` from the resolved name: `YIELD_PROCESS_INSIGHTS_V2` → `yield_process_insights_v2`.
+Derive `display_name`: replace underscores with spaces and title-case: `"Yield Process Insights V2"`.
+Derive branch slug: lowercase, underscores → hyphens: `feat/workflow-yield-process-insights-v2`.
+
+**If `--workflow-name` is provided, skip to spec derivation using that name — do NOT check whether a workflow with that name already exists in `workflow_names.py`. The caller explicitly chose this name; proceed with full integration.**
+
+### Derive Spec from Code (skip if --spec-file provided)
 
 If `--spec-file` was given, use it. Otherwise derive a `workflow_spec.md` by filling
 in the template from what Step 1 found:

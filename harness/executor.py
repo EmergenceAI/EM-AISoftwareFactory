@@ -350,6 +350,7 @@ class Executor:
         branch: Optional[str] = None,
         spec_file: Optional[str] = None,
         prototype_dir: Optional[str] = None,
+        workflow_name: Optional[str] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
@@ -408,6 +409,8 @@ class Executor:
                 )
                 if spec_file:
                     prompt += f" --spec-file {spec_file}"
+                if workflow_name:
+                    prompt += f" --workflow-name {workflow_name}"
                 if issue_key and not _is_local(issue_key):
                     prompt += f" --jira-key {issue_key}"
             elif spec_file:
@@ -752,6 +755,7 @@ When implementing this issue:
         repo_path: Path,
         spec_file: Optional[str] = None,
         prototype_dir: Optional[str] = None,
+        workflow_name: Optional[str] = None,
     ) -> Dict:
         """
         Invoke the appropriate skill by shelling out to the claude CLI.
@@ -776,6 +780,8 @@ When implementing this issue:
             prompt = f"/integrate-prototype --prototype-dir {prototype_dir} --context-file {context_file}"
             if spec_file:
                 prompt += f" --spec-file {spec_file}"
+            if workflow_name:
+                prompt += f" --workflow-name {workflow_name}"
             if issue_key and not _is_local(issue_key):
                 prompt += f" --jira-key {issue_key}"
         elif spec_file:
