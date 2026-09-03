@@ -94,19 +94,76 @@ def _resolve_repository(args, workspace_config) -> str:
 
 
 def cmd_implement(args):
-    """Implement a single Jira issue with workspace-level orchestration."""
+    """Implement a single Jira issue or workflow spec with workspace-level orchestration."""
+
+    # Validate: at least one of issue_key, --spec, or --prototype must be provided
+    spec_file = getattr(args, 'spec_file', None)
+    prototype_dir = getattr(args, 'prototype_dir', None)
+
+    if not args.issue_key and not spec_file and not prototype_dir:
+        print("❌  Error: provide a Jira issue key, --spec <path>, --prototype <dir>, or a combination.")
+        print("   Examples:")
+        print("     python -m harness implement SEMI-1234")
+        print("     python -m harness implement --spec templates/workflow_spec.md")
+        print("     python -m harness implement --prototype workflow/prototypes/wf2_yield_insights/")
+        print("     python -m harness implement SEMI-1234 --prototype workflow/prototypes/wf2_yield_insights/")
+        print("     python -m harness implement --spec yieldprocessinsights.md --prototype workflow/prototypes/wf2_yield_insights/")
+        sys.exit(1)
+
+    # Validate spec file exists if provided
+    if spec_file:
+        spec_path = Path(spec_file)
+        if not spec_path.exists():
+            print(f"❌  Spec file not found: {spec_file}")
+            sys.exit(1)
+        spec_file = str(spec_path.resolve())
+
+    # Validate prototype directory exists if provided
+    if prototype_dir:
+        proto_path = Path(prototype_dir)
+        if not proto_path.exists() or not proto_path.is_dir():
+            print(f"❌  Prototype directory not found: {prototype_dir}")
+            sys.exit(1)
+        prototype_dir = str(proto_path.resolve())
+        # Collect all .py files in the prototype dir
+        proto_files = list(proto_path.glob("**/*.py"))
+        if not proto_files:
+            print(f"❌  No .py files found in prototype directory: {prototype_dir}")
+            sys.exit(1)
+        print(f"📦 Prototype: {prototype_dir} ({len(proto_files)} .py files)")
 
     print(f"\n{'='*60}")
     print(f"AI Software Factory - Workspace Harness")
     skill_mode = True  # always skill mode — harness mode removed in this branch
-    mode = "skill"
+    if prototype_dir and not spec_file:
+        mode = "integrate-prototype"
+    elif prototype_dir and spec_file:
+        mode = "integrate-prototype+spec"
+    elif spec_file:
+        mode = "workflow-spec"
+    else:
+        mode = "skill"
     print(f"Mode: {mode}")
     print(f"{'='*60}\n")
 
     workspace_config = load_workspace_config()
     factory_root = Path(__file__).parent.parent
 
-    print(f"📋 Issue: {args.issue_key}")
+    issue_key = args.issue_key or "PROTO-LOCAL"  # placeholder when no Jira key given
+    workflow_name = getattr(args, 'workflow_name', None)
+    if workflow_name and workflow_name != workflow_name.upper():
+        print(f"⚠️   --workflow-name should be UPPER_SNAKE_CASE (got: {workflow_name})")
+        workflow_name = workflow_name.upper().replace("-", "_").replace(" ", "_")
+        print(f"    Normalised to: {workflow_name}")
+
+    if args.issue_key:
+        print(f"📋 Issue:         {args.issue_key}")
+    if spec_file:
+        print(f"📄 Spec:          {spec_file}")
+    if prototype_dir:
+        print(f"📦 Prototype:     {prototype_dir}")
+    if workflow_name:
+        print(f"🏷️  Workflow name: {workflow_name}")
     repository = _resolve_repository(args, workspace_config)
     print()
 
@@ -130,8 +187,8 @@ def cmd_implement(args):
         if repo_path:
             (repo_path / ".harness-results").mkdir(exist_ok=True)
 
-        provenance.start_run(run_id, args.issue_key, repository, str(repo_path or ''))
-        print(f"\n🏭 Run {run_id}  |  {args.issue_key} → {repository}")
+        provenance.start_run(run_id, issue_key, repository, str(repo_path or ''))
+        print(f"\n🏭 Run {run_id}  |  {issue_key} → {repository}")
 
         watchdog = Watchdog(run_id=run_id, on_warn=lambda s, e: print(f"⚠️  {s} running {e/60:.0f}m"), on_kill=lambda s, e: print(f"🔴  killing {s}"))
         watchdog.start()
@@ -141,7 +198,7 @@ def cmd_implement(args):
         def _noop_server_call(fn, *a, **kw): pass
 
         result = executor.execute_with_provenance(
-            issue_key=args.issue_key,
+            issue_key=issue_key,
             repository=repository,
             run_id=run_id,
             provenance=provenance,
@@ -150,13 +207,16 @@ def cmd_implement(args):
             circuit_breaker=circuit_breaker,
             server_call=_noop_server_call,
             branch=getattr(args, 'branch', None),
+            spec_file=spec_file,
+            prototype_dir=prototype_dir,
+            workflow_name=workflow_name,
         )
 
         watchdog.stop()
         outcome = "success" if result.success else "partial" if result.pr_url else "failed"
         provenance.finish_run(
             run_id=run_id,
-            issue_key=args.issue_key,
+            issue_key=issue_key,
             repository=repository,
             overall_outcome=outcome,
             gate_attempts=0,
@@ -724,10 +784,52 @@ Examples:
         'implement',
         help='Implement single Jira issue in one repository'
     )
-    implement.add_argument('issue_key', help='Jira issue key (e.g., ABI-123)')
+    implement.add_argument(
+        'issue_key',
+        nargs='?',
+        default=None,
+        help='Jira issue key (e.g., SEMI-1234). Optional when --spec is provided.',
+    )
     implement.add_argument(
         '--repo',
         help='Explicit repository name (default: auto-route)'
+    )
+    implement.add_argument(
+        '--spec',
+        default=None,
+        metavar='PATH',
+        dest='spec_file',
+        help=(
+            'Path to a workflow spec .md file (see templates/workflow_spec.md). '
+            'When provided, routes to /implement-workflow instead of /autonomous-implement. '
+            'issue_key is optional when --spec is given; supply both to link the PR to Jira.'
+        ),
+    )
+    implement.add_argument(
+        '--prototype',
+        default=None,
+        metavar='DIR',
+        dest='prototype_dir',
+        help=(
+            'Path to a directory containing a workflow prototype (.py files). '
+            'Routes to /integrate-prototype skill which: (1) reads the prototype code, '
+            '(2) auto-generates a workflow spec if --spec is not provided, '
+            '(3) wraps analysis logic into @semi_flow/@semi_task, '
+            '(4) converts charts to Plotly em-semi house style, '
+            '(5) creates a PR. issue_key and --spec are both optional.'
+        ),
+    )
+    implement.add_argument(
+        '--workflow-name',
+        default=None,
+        metavar='NAME',
+        dest='workflow_name',
+        help=(
+            'Override the workflow name derived from the prototype (UPPER_SNAKE_CASE). '
+            'Useful for testing full integration with an existing prototype under a new name, '
+            'or for creating a variant of an existing workflow. '
+            'Example: --workflow-name YIELD_PROCESS_INSIGHTS_V2'
+        ),
     )
     implement.add_argument(
         '--skill',
