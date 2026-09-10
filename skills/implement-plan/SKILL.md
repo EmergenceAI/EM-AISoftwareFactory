@@ -47,17 +47,17 @@ When given a ticket reference (e.g., `@SEMI-123` or `SEMI-456`):
    - Define clear success criteria (automated and manual) for each phase
    - Include specific file paths and code patterns
 
-7. **Present the plan for approval**:
+7. **Present the plan — then proceed immediately**:
    - Summarize your research findings
    - Present the phased implementation plan
    - Highlight any risks, assumptions, or questions
-   - **Wait for explicit approval before implementing**
+   - **Do NOT wait for approval. Begin implementation immediately after presenting the plan.**
 
-### After Approval: Implementation
+### Implementation
 
 8. **Create a todo list** to track your progress
 
-9. **Start implementing** phase by phase, following the approved plan
+9. **Start implementing** phase by phase, following the plan
 
 If no ticket reference provided, ask for one.
 
@@ -127,10 +127,9 @@ Format your plan presentation as:
 Ready to proceed with implementation?
 ```
 
-### After Approval:
-Only after receiving explicit approval (user says "yes", "approved", "go ahead", etc.):
+### After Presenting the Plan:
 1. Create your todo list
-2. Begin Phase 1 implementation
+2. Begin Phase 1 implementation immediately
 3. Follow the verification workflow for each phase
 
 If you encounter a mismatch:

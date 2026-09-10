@@ -48,9 +48,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from harness.router import Router
 from harness.executor import Executor
-from harness.harness import Harness
 from harness.knowledge import KnowledgeEngine
 from harness import jira_mcp
+from harness.provenance import ProvenanceLogger
+from harness.watchdog import Watchdog
+from harness.checkpoint import Checkpoint
+from harness.circuit_breaker import CircuitBreaker
+from harness.locks import RepoLock, LockError
+import uuid
 
 _FACTORY_ROOT   = Path(__file__).parent.parent
 _PROVENANCE_DIR = _FACTORY_ROOT / "provenance"
@@ -93,8 +98,8 @@ def cmd_implement(args):
 
     print(f"\n{'='*60}")
     print(f"AI Software Factory - Workspace Harness")
-    skill_mode = getattr(args, 'skill', False)
-    mode = "skill" if skill_mode else "harness"
+    skill_mode = True  # always skill mode — harness mode removed in this branch
+    mode = "skill"
     print(f"Mode: {mode}")
     print(f"{'='*60}\n")
 
@@ -105,27 +110,67 @@ def cmd_implement(args):
     repository = _resolve_repository(args, workspace_config)
     print()
 
-    if not skill_mode:
-        # ── Harness mode: step-by-step loop with provenance ──────────────
-        harness = Harness(
-            factory_root,
-            workspace_config,
-            max_gate_attempts=getattr(args, 'max_gate_attempts', 3),
-            auto_merge=getattr(args, 'auto_merge', False),
-        )
-        result = harness.implement(issue_key=args.issue_key, repository=repository)
-        print(result.summary())
-        sys.exit(0 if result.overall_outcome in ("success", "partial") else 1)
-    else:
-        # ── Skill mode: delegate to /autonomous-implement (original) ─────
-        executor = Executor(factory_root, workspace_config)
-        result = executor.execute_single_repo(
+    # Skill mode with provenance monitoring
+    start_time = time.time()
+    run_id = f"run_{int(start_time)}_{uuid.uuid4().hex[:8]}"
+    prov_dir = factory_root / "provenance"
+    provenance = ProvenanceLogger(prov_dir)
+
+    repo_config = workspace_config.get('repositories', [])
+    repo_path = None
+    for r in repo_config:
+        if r['name'] == repository:
+            workspace_root = Path(workspace_config['workspace']['root'])
+            repo_path = workspace_root / r['path']
+            break
+
+    executor = Executor(factory_root, workspace_config)
+
+    try:
+        if repo_path:
+            (repo_path / ".harness-results").mkdir(exist_ok=True)
+
+        provenance.start_run(run_id, args.issue_key, repository, str(repo_path or ''))
+        print(f"\n🏭 Run {run_id}  |  {args.issue_key} → {repository}")
+
+        watchdog = Watchdog(run_id=run_id, on_warn=lambda s, e: print(f"⚠️  {s} running {e/60:.0f}m"), on_kill=lambda s, e: print(f"🔴  killing {s}"))
+        watchdog.start()
+        checkpoint = Checkpoint(repo_path) if repo_path else None
+        circuit_breaker = CircuitBreaker(prov_dir)
+
+        def _noop_server_call(fn, *a, **kw): pass
+
+        result = executor.execute_with_provenance(
             issue_key=args.issue_key,
             repository=repository,
+            run_id=run_id,
+            provenance=provenance,
+            watchdog=watchdog,
+            checkpoint=checkpoint,
+            circuit_breaker=circuit_breaker,
+            server_call=_noop_server_call,
+            branch=getattr(args, 'branch', None),
+        )
+
+        watchdog.stop()
+        outcome = "success" if result.success else "partial" if result.pr_url else "failed"
+        provenance.finish_run(
+            run_id=run_id,
+            issue_key=args.issue_key,
+            repository=repository,
+            overall_outcome=outcome,
+            gate_attempts=0,
+            steps=[],
+            gate_results=[],
+            pr_url=result.pr_url,
+            duration_ms=(time.time() - start_time) * 1000,
         )
         print(result.summary() if hasattr(result, 'summary') else str(result))
         sys.exit(0 if result.success else 1)
 
+    except LockError as e:
+        print(f"⏳  Repo locked: {e}")
+        sys.exit(1)
 
 def cmd_multi_repo(args):
     """Implement issue across multiple repositories."""
@@ -641,6 +686,10 @@ def cmd_runs(args):
 
 def main():
     """Main CLI entry point."""
+    # Shorthand: python -m harness SEMI-1665  →  python -m harness implement SEMI-1665
+    if len(sys.argv) > 1 and not sys.argv[1].startswith('-') and '-' in sys.argv[1] and sys.argv[1].upper() == sys.argv[1]:
+        sys.argv.insert(1, 'implement')
+
     parser = argparse.ArgumentParser(
         description='AI Software Factory - Workspace-level harness',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -700,6 +749,12 @@ Examples:
         action='store_true',
         default=False,
         help='Auto-merge PR via gh CLI when all gates pass (harness mode only)',
+    )
+    implement.add_argument(
+        '--branch',
+        default=None,
+        metavar='BRANCH',
+        help='Use an existing branch instead of creating a new one (e.g. observability-healthchecks)',
     )
     implement.set_defaults(func=cmd_implement)
 

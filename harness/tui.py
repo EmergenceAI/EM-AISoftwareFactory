@@ -390,6 +390,8 @@ def _render_active_runs(active_runs: List[dict]) -> Panel:
         table.add_row("", Text("No active runs", style="dim"), "", "", "")
     else:
         for run in active_runs:
+            if not isinstance(run, dict):
+                continue
             issue_key = run.get("issue_key", "—")
             completed = run.get("completed_steps", [])
             last_step = run.get("last_step", "—") or "—"
