@@ -373,6 +373,13 @@ class Executor:
             if events_path.exists():
                 events_path.unlink()
 
+            # Remove any orphaned context files left by a crashed prior run
+            for stale in repo_path.glob(f'.knowledge_context_{repo_config["name"]}_*.md'):
+                try:
+                    stale.unlink()
+                except OSError:
+                    pass
+
             knowledge_context = self.knowledge_engine.get_repository_knowledge(repository)
             foundations = self.knowledge_engine.get_foundations_guidance('standards')
             context_file = self._create_knowledge_context_file(
@@ -762,8 +769,10 @@ When implementing this issue:
 
         # Write into the repo dir so the subprocess claude session can read it
         # without hitting an out-of-allowed-directory permission prompt.
-        # _invoke_skill_via_subprocess deletes it after claude exits.
-        context_file = repo_path / f'.knowledge_context_{repo_config["name"]}.md'
+        # UUID suffix ensures each run gets a unique file — stale files from
+        # a prior run (crash, kill, or incomplete cleanup) can never bleed
+        # context into a new run for the same repo.
+        context_file = repo_path / f'.knowledge_context_{repo_config["name"]}_{uuid.uuid4().hex[:12]}.md'
         context_file.write_text(context)
         return context_file
 
