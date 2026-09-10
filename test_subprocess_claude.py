@@ -34,7 +34,7 @@ except FileNotFoundError as e:
 except subprocess.TimeoutExpired:
     print("   ERROR: Timeout")
 
-# Test 3: claude with message file (similar to orchestrator)
+# Test 3: claude with message file (similar to harness)
 print("\n3. Testing 'claude --message-file'...")
 message = "Hello, this is a test message"
 with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
