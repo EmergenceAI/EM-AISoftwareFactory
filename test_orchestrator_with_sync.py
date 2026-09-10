@@ -2,11 +2,11 @@
 """
 Test Orchestrator with Auto-Sync
 
-Demonstrates that knowledge packs are automatically synced before orchestrator runs.
+Demonstrates that knowledge packs are automatically synced before harness runs.
 """
 
 import sys
-from orchestrator import ensure_knowledge_fresh, KnowledgeEngine, Router
+from harness import ensure_knowledge_fresh, KnowledgeEngine, Router
 
 def main():
     print("=" * 80)
@@ -108,10 +108,10 @@ def main():
     print("🎉 Orchestrator ready to use!")
     print()
     print("Next steps:")
-    print("1. Knowledge packs will auto-sync before each orchestrator run")
+    print("1. Knowledge packs will auto-sync before each harness run")
     print("2. Only re-extracts if README.md or docs/ changed in repos")
     print("3. Manual sync: ./sync_knowledge.sh")
-    print("4. Force sync: python3 -m orchestrator.sync --force")
+    print("4. Force sync: python3 -m harness.sync --force")
     print()
 
 if __name__ == '__main__':

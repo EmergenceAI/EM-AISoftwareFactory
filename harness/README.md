@@ -1,4 +1,4 @@
-# Orchestrator - Workspace-Level Orchestration
+# Harness - Workspace-Level Orchestration
 
 **Thin orchestration layer that enhances existing skills with repository knowledge and multi-repo coordination.**
 
@@ -6,7 +6,7 @@
 
 ## What It Does
 
-The orchestrator **delegates** to existing `/autonomous-implement` skill while providing:
+The harness **delegates** to existing `/autonomous-implement` skill while providing:
 
 1. **Repository Routing** - Auto-routes Jira issues to correct repository
 2. **Knowledge Injection** - Provides repo-specific architecture/patterns to skills
@@ -40,7 +40,7 @@ The orchestrator **delegates** to existing `/autonomous-implement` skill while p
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key Insight:** The orchestrator does NOT reimplement the SDLC workflow. It enhances existing skills with knowledge context.
+**Key Insight:** The harness does NOT reimplement the SDLC workflow. It enhances existing skills with knowledge context.
 
 ---
 
@@ -73,26 +73,26 @@ Invokes `/autonomous-implement` with enriched context:
 
 ```bash
 # Implement single issue (auto-route)
-python -m orchestrator implement ABI-123
+python -m harness implement ABI-123
 
 # Implement in specific repository
-python -m orchestrator implement ABI-123 --repo runtime
+python -m harness implement ABI-123 --repo runtime
 
 # Multi-repository implementation
-python -m orchestrator multi-repo SDK-456 --repos sdk,runtime,runtime-ui
+python -m harness multi-repo SDK-456 --repos sdk,runtime,runtime-ui
 
 # View repository knowledge
-python -m orchestrator knowledge --repo runtime
-python -m orchestrator knowledge --list
+python -m harness knowledge --repo runtime
+python -m harness knowledge --list
 
-# Test orchestrator components
-python -m orchestrator test ABI-123
+# Test harness components
+python -m harness test ABI-123
 ```
 
 ### Programmatic API
 
 ```python
-from orchestrator import Executor, Router, KnowledgeEngine
+from harness import Executor, Router, KnowledgeEngine
 from pathlib import Path
 import yaml
 
@@ -184,7 +184,7 @@ link_cross_repo_prs(results)
 
 ## Knowledge Injection Mechanism
 
-The orchestrator creates a temporary knowledge context file:
+The harness creates a temporary knowledge context file:
 
 ```markdown
 # Repository Knowledge Context
@@ -272,13 +272,13 @@ cd ~/em-runtime
 
 ```bash
 # From workspace root (any directory):
-python -m orchestrator implement ABI-123
+python -m harness implement ABI-123
 #  Auto-routes to em-runtime
 #  Injects runtime architecture/patterns
 #  Enforces Foundations standards
 
 # Multi-repo issue:
-python -m orchestrator multi-repo SDK-456
+python -m harness multi-repo SDK-456
 #  Detects affected repos: sdk, runtime, runtime-ui
 #  Executes in parallel with repo-specific knowledge
 #  Links PRs together
@@ -345,8 +345,8 @@ jira:
 ## Testing
 
 ```bash
-# Test orchestrator components
-python -m orchestrator test ABI-123
+# Test harness components
+python -m harness test ABI-123
 
 # Output:
 # Testing Router...
@@ -369,10 +369,10 @@ python -m orchestrator test ABI-123
 ### Example 1: Single Repository
 
 ```bash
-$ python -m orchestrator implement ABI-123
+$ python -m harness implement ABI-123
 
 ============================================================
-AI Software Factory - Workspace Orchestrator
+AI Software Factory - Workspace Harness
 ============================================================
 
  Fetching issue: ABI-123
@@ -410,10 +410,10 @@ Repositories: 1
 ### Example 2: Multi-Repository
 
 ```bash
-$ python -m orchestrator multi-repo SDK-456
+$ python -m harness multi-repo SDK-456
 
 ============================================================
-AI Software Factory - Multi-Repo Orchestrator
+AI Software Factory - Multi-Repo Harness
 ============================================================
 
  Fetching issue: SDK-456

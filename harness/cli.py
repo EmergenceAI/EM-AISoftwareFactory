@@ -172,7 +172,6 @@ def cmd_implement(args):
         print(f"⏳  Repo locked: {e}")
         sys.exit(1)
 
-
 def cmd_multi_repo(args):
     """Implement issue across multiple repositories."""
 
