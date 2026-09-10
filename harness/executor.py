@@ -128,9 +128,9 @@ class EventMonitor:
             self._server_call("update_run", self.run_id, current_step=step)
             print(f"   ▶  {step}")
 
-        elif ev == "step_end":
+        elif ev in ("step_end", "step_complete"):
             step = event["step"]
-            success = event.get("success", False)
+            success = event.get("success", True)  # step_complete implies success
             t0 = self._step_starts.get(step, now)
             duration_ms = (now - t0) * 1000
             record = StepRecord(
@@ -141,8 +141,9 @@ class EventMonitor:
                 error=event.get("error"),
             )
             self.provenance.log_step(self.run_id, record)
-            completed = self.checkpoint.completed_steps() + [step]
-            self.checkpoint.write(self.run_id, self.issue_key, completed)
+            if self.checkpoint:
+                completed = self.checkpoint.completed_steps() + [step]
+                self.checkpoint.write(self.run_id, self.issue_key, completed)
             icon = "✅" if success else "❌"
             print(f"   {icon}  {step}")
 
@@ -446,8 +447,26 @@ class Executor:
                 timeout=7200,  # 2-hour hard ceiling
             )
 
-            final = monitor.wait_for_complete(timeout=30)
+            final = monitor.wait_for_complete(timeout=60)
             monitor.stop()
+
+            # Fallback: if monitor missed run_complete (e.g. all events flushed at exit),
+            # scan the events file directly for the last run_complete line.
+            if final is None and events_path.exists():
+                try:
+                    for raw in reversed(events_path.read_text().splitlines()):
+                        raw = raw.strip()
+                        if not raw:
+                            continue
+                        try:
+                            ev = json.loads(raw)
+                        except json.JSONDecodeError:
+                            continue
+                        if ev.get("event") == "run_complete":
+                            final = ev
+                            break
+                except OSError:
+                    pass
 
             if context_file.exists():
                 context_file.unlink()
