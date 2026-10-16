@@ -37,6 +37,7 @@ Usage examples
 """
 
 import json
+import os
 import sys
 import argparse
 import time
@@ -71,7 +72,18 @@ def load_workspace_config() -> dict:
         sys.exit(1)
 
     with open(workspace_file) as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    # workspace.yaml is shared across machines, so its root may not exist locally.
+    # Precedence: $HARNESS_WORKSPACE_ROOT > configured root (if present) > factory's parent dir.
+    workspace = config.setdefault('workspace', {})
+    env_root = os.environ.get('HARNESS_WORKSPACE_ROOT')
+    if env_root:
+        workspace['root'] = env_root
+    elif not Path(workspace.get('root', '')).is_dir():
+        workspace['root'] = str(Path(__file__).resolve().parent.parent.parent)
+
+    return config
 
 
 def _resolve_repository(args, workspace_config) -> str:
