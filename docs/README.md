@@ -9,7 +9,7 @@ Complete documentation for AI Software Factory.
 | Doc | Description |
 |-----|-------------|
 | **[Quick Start](guides/QUICKSTART.md)** | Get started quickly |
-| **[Orchestrator Guide](guides/ORCHESTRATOR_GUIDE.md)** | Complete orchestrator usage |
+| **[Harness Guide](guides/HARNESS_GUIDE.md)** | Complete harness usage |
 | **[Main README](../README.md)** | Overview and installation |
 
 ---
@@ -51,7 +51,7 @@ Platform engineering standards and requirements:
 How to use the factory effectively:
 
 - **[Quickstart](guides/QUICKSTART.md)** - Get started
-- **[Orchestrator Guide](guides/ORCHESTRATOR_GUIDE.md)** - Complete orchestrator usage
+- **[Harness Guide](guides/HARNESS_GUIDE.md)** - Complete harness usage
 - **[Testing Guide](guides/TESTING_GUIDE.md)** - Multi-agent system testing
 
 **Common Tasks:**
@@ -78,7 +78,7 @@ docs/
 ├── README.md                                    # This file
 └── guides/                                      # User guides
     ├── QUICKSTART.md                            # Quick start
-    ├── ORCHESTRATOR_GUIDE.md                    # Orchestrator usage
+    ├── HARNESS_GUIDE.md                    # Harness usage
     └── TESTING_GUIDE.md                         # Testing multi-agent
 
 knowledge/foundations/
@@ -103,7 +103,7 @@ Knowledge automatically extracted from repositories:
 - Zero maintenance (read-only generated artifacts)
 
 ```bash
-# Automatic sync before orchestrator runs
+# Automatic sync before harness runs
 ensure_knowledge_fresh()
 
 # Manual sync anytime

@@ -32,7 +32,7 @@ class RepositoryAdapter(ABC):
     Each repository implements this interface to provide standardized
     access to build, test, lint, and metadata operations.
 
-    The adapter pattern allows the orchestrator to remain agnostic
+    The adapter pattern allows the harness to remain agnostic
     to repository-specific details while maintaining consistent operations.
     """
 
