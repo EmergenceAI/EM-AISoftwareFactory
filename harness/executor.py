@@ -348,6 +348,9 @@ class Executor:
         circuit_breaker: CircuitBreaker,
         server_call,
         branch: Optional[str] = None,
+        spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
+        workflow_name: Optional[str] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
@@ -376,6 +379,8 @@ class Executor:
                 foundations_standards=foundations.get('standards', ''),
                 repo_config=repo_config,
                 repo_path=repo_path,
+                spec_file=spec_file,
+                prototype_dir=prototype_dir,
             )
 
             monitor = EventMonitor(
@@ -390,11 +395,40 @@ class Executor:
             )
             monitor.start(events_path)
 
-            prompt = (
-                f"/autonomous-implement {issue_key}"
-                f" --context-file {context_file}"
-                f" --provenance-file {events_path}"
-            )
+            # Skill routing:
+            #   prototype (with or without spec) → /integrate-prototype
+            #   spec only                        → /implement-workflow
+            #   neither                          → /autonomous-implement
+            _is_local = lambda k: k in ("SPEC-LOCAL", "PROTO-LOCAL")
+            if prototype_dir:
+                skill_name = "integrate-prototype"
+                prompt = (
+                    f"/{skill_name} --prototype-dir {prototype_dir}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
+                if spec_file:
+                    prompt += f" --spec-file {spec_file}"
+                if workflow_name:
+                    prompt += f" --workflow-name {workflow_name}"
+                if issue_key and not _is_local(issue_key):
+                    prompt += f" --jira-key {issue_key}"
+            elif spec_file:
+                skill_name = "implement-workflow"
+                prompt = (
+                    f"/{skill_name} --spec-file {spec_file}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
+                if issue_key and not _is_local(issue_key):
+                    prompt += f" --jira-key {issue_key}"
+            else:
+                skill_name = "autonomous-implement"
+                prompt = (
+                    f"/{skill_name} {issue_key}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
             if branch:
                 prompt += f" --branch {branch}"
             cmd = [
@@ -553,6 +587,8 @@ class Executor:
         foundations_standards: str,
         repo_config: Dict,
         repo_path: Path,
+        spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
     ) -> Path:
         """
         Create knowledge context file inside the target repo directory.
@@ -568,6 +604,86 @@ class Executor:
         Returns:
             Path to temporary context file
         """
+        # Inject spec file content if provided
+        spec_section = ""
+        if spec_file:
+            try:
+                spec_content = Path(spec_file).read_text()
+                spec_section = f"""
+---
+
+## Workflow Specification (primary task description)
+
+{spec_content}
+
+---
+"""
+            except Exception:
+                spec_section = ""
+
+        # Inject prototype source files if provided.
+        # Files under INLINE_THRESHOLD are injected in full; larger files get a
+        # structural summary (module docstring + function signatures) so the context
+        # stays manageable. The skill can Read the full file at its absolute path.
+        INLINE_THRESHOLD = 40_000  # bytes — ~1000 lines
+        prototype_section = ""
+        if prototype_dir:
+            proto_path = Path(prototype_dir)
+            py_files = sorted(proto_path.glob("**/*.py"))
+            parts = [
+                "\n---\n\n## Prototype Source Files\n\n"
+                f"Prototype directory: `{prototype_dir}`\n\n"
+                "Files marked **[FULL SOURCE]** are injected in full. "
+                "Files marked **[SUMMARY ONLY]** are large — use the `Read` tool "
+                "on their absolute path to access the full source during skill execution.\n"
+            ]
+            for f in sorted(py_files, key=lambda x: x.stat().st_size):
+                try:
+                    src = f.read_text()
+                    rel = f.relative_to(proto_path)
+                    size_kb = f.stat().st_size / 1024
+                    if f.stat().st_size <= INLINE_THRESHOLD:
+                        parts.append(f"\n### `{rel}` — {size_kb:.0f} KB [FULL SOURCE]\n\n```python\n{src}\n```\n")
+                    else:
+                        # Extract: module docstring + all def/class signatures
+                        import ast, textwrap
+                        summary_lines = []
+                        try:
+                            tree = ast.parse(src)
+                            # module docstring
+                            if (isinstance(tree.body[0], ast.Expr) and
+                                    isinstance(tree.body[0].value, ast.Constant)):
+                                doc = textwrap.shorten(tree.body[0].value.s, width=400, placeholder="...")
+                                summary_lines.append(f'"""{doc}"""\n')
+                            # top-level constants (UPPER_CASE assignments)
+                            for node in tree.body:
+                                if isinstance(node, ast.Assign):
+                                    for t in node.targets:
+                                        if isinstance(t, ast.Name) and t.id.isupper():
+                                            line = src.splitlines()[node.lineno - 1].strip()
+                                            summary_lines.append(line)
+                            # function and class signatures
+                            for node in ast.walk(tree):
+                                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                                    sig = src.splitlines()[node.lineno - 1].strip()
+                                    fdoc = ast.get_docstring(node)
+                                    fdoc_short = textwrap.shorten(fdoc, width=120, placeholder="...") if fdoc else ""
+                                    summary_lines.append(f"{sig}")
+                                    if fdoc_short:
+                                        summary_lines.append(f'    """{fdoc_short}"""')
+                        except Exception:
+                            summary_lines = src.splitlines()[:60]
+                        summary = "\n".join(summary_lines)
+                        parts.append(
+                            f"\n### `{rel}` — {size_kb:.0f} KB [SUMMARY ONLY]\n"
+                            f"**Full path:** `{f.resolve()}`  — use `Read` tool to access full source.\n\n"
+                            f"```python\n{summary}\n```\n"
+                        )
+                except Exception:
+                    pass
+            parts.append("\n---\n")
+            prototype_section = "\n".join(parts)
+
         context = f"""# Repository Knowledge Context
 # This context is automatically injected by the harness
 
@@ -575,7 +691,7 @@ class Executor:
 **Display Name:** {repo_config.get('display_name', repo_config['name'])}
 **Language:** {repo_config.get('language', 'unknown')}
 **Build System:** {repo_config.get('build_system', 'unknown')}
-
+{spec_section}{prototype_section}
 ---
 
 ## Architecture
@@ -587,6 +703,12 @@ class Executor:
 ## Coding Patterns
 
 {knowledge_context.get('patterns', 'No coding patterns documented.')}
+
+---
+
+## Output Style (charts and reports)
+
+{knowledge_context.get('output_style', 'See output_style.md for chart conventions.')}
 
 ---
 
@@ -630,23 +752,44 @@ When implementing this issue:
         self,
         issue_key: str,
         context_file: Path,
-        repo_path: Path
+        repo_path: Path,
+        spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
+        workflow_name: Optional[str] = None,
     ) -> Dict:
         """
-        Invoke /autonomous-implement skill by shelling out to the claude CLI.
+        Invoke the appropriate skill by shelling out to the claude CLI.
 
-        Runs claude headlessly (-p) with the factory plugin dir so all skills
-        are available, then passes the skill invocation as the initial prompt.
+        Routing:
+          prototype (±spec) → /integrate-prototype
+          spec only         → /implement-workflow
+          neither           → /autonomous-implement
 
         Args:
-            issue_key: Jira issue key
+            issue_key: Jira issue key (or PROTO-LOCAL / SPEC-LOCAL placeholder)
             context_file: Path to knowledge context file (persists until skill completes)
             repo_path: Repository path (used as cwd for the claude process)
+            spec_file: Optional path to a workflow spec .md file
+            prototype_dir: Optional path to a directory of prototype .py files
 
         Returns:
             Execution result dictionary
         """
-        prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
+        _is_local = lambda k: k in ("SPEC-LOCAL", "PROTO-LOCAL")
+        if prototype_dir:
+            prompt = f"/integrate-prototype --prototype-dir {prototype_dir} --context-file {context_file}"
+            if spec_file:
+                prompt += f" --spec-file {spec_file}"
+            if workflow_name:
+                prompt += f" --workflow-name {workflow_name}"
+            if issue_key and not _is_local(issue_key):
+                prompt += f" --jira-key {issue_key}"
+        elif spec_file:
+            prompt = f"/implement-workflow --spec-file {spec_file} --context-file {context_file}"
+            if issue_key and not _is_local(issue_key):
+                prompt += f" --jira-key {issue_key}"
+        else:
+            prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
 
         cmd = [
             'claude',
@@ -655,9 +798,20 @@ When implementing this issue:
             '-p', prompt,
         ]
 
-        print(f"\n🚀 Launching claude to implement {issue_key} in {repo_path.name}...")
-        print(f"   Plugin: {self.factory_root}")
-        print(f"   Context: {context_file}\n")
+        if prototype_dir:
+            skill_label = "integrate-prototype"
+        elif spec_file:
+            skill_label = "implement-workflow"
+        else:
+            skill_label = f"implement {issue_key}"
+        print(f"\n🚀 Launching claude to {skill_label} in {repo_path.name}...")
+        print(f"   Plugin:    {self.factory_root}")
+        print(f"   Context:   {context_file}")
+        if prototype_dir:
+            print(f"   Prototype: {prototype_dir}")
+        if spec_file:
+            print(f"   Spec:      {spec_file}")
+        print()
 
         try:
             result = subprocess.run(
