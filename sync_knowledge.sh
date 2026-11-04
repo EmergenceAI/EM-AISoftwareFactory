@@ -21,6 +21,7 @@ REPOS=(
     "sdk:$HOME/Documents/Development/em-sdk"
     "data-readiness:$HOME/Documents/Development/em-data-readiness"
     "semi:$HOME/Documents/Development/em-semi"
+    "craft:$HOME/Documents/Development/craft"
 )
 
 # Load sync state
