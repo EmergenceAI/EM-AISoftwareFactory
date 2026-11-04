@@ -237,7 +237,8 @@ def build_skill_prompt(
     """
     Build the `claude -p` prompt that invokes a factory skill.
 
-    Options with a None value are omitted. `branch` is always emitted last, after
+    Options with a None value are omitted; an empty-string value is emitted as a bare
+    flag (`--no-pr`). `branch` is always emitted last, after
     --provenance-file, so the /autonomous-implement prompt stays byte-identical to
     the one the harness built before skills became configurable.
     """
@@ -245,7 +246,7 @@ def build_skill_prompt(
     branch = options.get("branch")
     for key, value in options.items():
         if key != "branch" and value is not None:
-            parts += [f"--{key}", value]
+            parts += [f"--{key}", value] if value else [f"--{key}"]
     parts += ["--context-file", str(context_file), "--provenance-file", str(events_path)]
     if branch is not None:
         parts += ["--branch", branch]

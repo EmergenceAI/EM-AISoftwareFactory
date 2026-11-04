@@ -25,3 +25,8 @@ def test_port_prompt():
     )
     assert p.startswith("/port-workflow cross_product_analysis --jira-key SEMI-9")
     assert "--em-semi-ref" not in p
+
+
+def test_empty_option_value_is_a_bare_flag():
+    p = build_skill_prompt("port-workflow", ["x"], {"jira-key": "SEMI-9", "no-pr": ""}, CTX, EV)
+    assert p.startswith("/port-workflow x --jira-key SEMI-9 --no-pr --context-file ")

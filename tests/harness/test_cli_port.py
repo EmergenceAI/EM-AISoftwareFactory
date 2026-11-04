@@ -22,7 +22,7 @@ def test_port_launches_port_workflow_in_craft():
     assert kw["skill_args"] == ["cross_product_analysis"]
     assert kw["skill_options"]["jira-key"] == "SEMI-9"
     assert kw["skill_options"]["stop-after"] == "map"
-    assert kw["skill_options"]["no-pr"] == "true"
+    assert kw["skill_options"]["no-pr"] == ""
     assert kw["skill_options"]["em-semi-ref"] is None
 
 

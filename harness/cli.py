@@ -146,7 +146,7 @@ def cmd_port(args):
             "em-semi-ref": args.em_semi_ref,
             "target-bundle": args.target_bundle,
             "stop-after": args.stop_after,
-            "no-pr": "true" if args.no_pr else None,
+            "no-pr": "" if args.no_pr else None,
             "branch": args.branch,
         },
     )
