@@ -87,3 +87,24 @@ def test_referenced_files_exist():
     text, _ = _skill()
     for rel in set(re.findall(r"(?:references|templates)/[\w.-]+", text)):
         assert (SK / rel).is_file(), rel
+
+
+def test_verify_uses_verify_and_fix_gate_names():
+    text, _ = _skill()
+    assert "--gates linter,tests,evals,review" in text
+    assert "code-review`" not in text.split("## Step 9", 1)[1].split("## Step 10", 1)[0]
+
+
+def test_generating_steps_point_existing_bundles_at_failure_handling():
+    text, _ = _skill()
+    for step in ["## Step 4", "## Step 5", "## Step 6", "## Step 7"]:
+        body = text.split(step, 1)[1].split("\n## Step", 1)[0]
+        assert "existing bundle" in body.lower(), step
+
+
+def test_pre_existing_failures_need_evidence():
+    text, _ = _skill()
+    sec = text.split("## Failure handling", 1)[1].lower()
+    assert "git archive" in sec
+    assert "importerror" in sec and "collection error" in sec
+    assert "in code this workflow uses" not in sec

@@ -87,9 +87,11 @@ When the real capability lands, the interface is switched over without touching 
 ## Parity: two layers
 
 1. **Static tests**, analog-trim style:
-   - em-semi's own tests, vendored, run against the vendored code (the oracle). Known pre-existing
-     failures at the pinned ref are quarantined by nodeid in `conftest.py` with
-     `xfail(strict=True)` and listed in the gap report, never fixed by editing vendored code.
+   - em-semi's own tests, vendored, run against the vendored code (the oracle). A failing vendored
+     test is a port defect unless it is **proven** to fail in em-semi at the pinned ref (see
+     SKILL.md *Failure handling*). Only proven ones are quarantined by nodeid in `conftest.py` with
+     `xfail(strict=True)` and listed in the gap report. ImportErrors and collection errors are
+     never pre-existing. Nothing is fixed by editing vendored code.
    - Goldens generated **from craft's own nodes** over the fixtures (`scripts/make_fixtures.py` +
      `tests/_golden.py` pattern), compared in tests and CI (`rel_tol=1e-6` default).
    - Self-containment/quarantine tests: vendored code imports nothing outside the vendor package,

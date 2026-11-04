@@ -17,8 +17,12 @@ import pytest
 
 VENDOR = Path(__file__).resolve().parents[1] / "src" / "{{PKG}}" / "vendor"
 
-#: The python-runner image's own manifest, read rather than copied, so it cannot drift.
-_REQUIREMENTS = Path(__file__).resolve().parents[5] / "compute-plane-python" / "python-runner" / "requirements.txt"
+#: The python-runner image's own manifest, read rather than copied, so it cannot drift. Found by
+#: walking up to craft's root rather than by a fixed depth, which broke once when bundles moved.
+_RUNNER_REQUIREMENTS = Path("compute-plane-python") / "python-runner" / "requirements.txt"
+_REQUIREMENTS = next(
+    parent / _RUNNER_REQUIREMENTS for parent in Path(__file__).resolve().parents if (parent / _RUNNER_REQUIREMENTS).is_file()
+)
 _IMPORT_NAME = {"scikit-learn": "sklearn"}
 
 FORBIDDEN_ROOTS = frozenset({"app", "common_semi", "prefect", "tests"})

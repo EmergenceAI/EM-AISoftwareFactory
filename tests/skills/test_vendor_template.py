@@ -32,6 +32,8 @@ def em_semi(tmp_path: Path) -> tuple[Path, str]:
     )
     (repo / "workflow/app/demo/util.py").write_text("def f():\n    return 1\n")
     (repo / "workflow/tests/demo/test_calc.py").write_text("from app.demo.calc import f\n")
+    (repo / "workflow/tests/demo/__init__.py").write_text("")
+    (repo / "workflow/tests/demo/test_more.py").write_text("from tests.demo.test_calc import f\n")
     _git(tmp_path, "init", "-q", str(repo))
     _git(repo, "add", ".")
     _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
@@ -46,14 +48,16 @@ def render_vendor(tmp_path: Path, em_semi):
     _git(tmp_path, "init", "-q", str(tmp_path / "craft"))
 
     def run(*, ref: str | None = None, em_semi_path: Path | None = None,
-            rewrites: list[str] | None = None, excluded: str = r"/flow\.py$") -> Run:
+            rewrites: list[str] | None = None, excluded: str = r"/flow\.py$",
+            src_roots: str = "workflow/app/demo", test_roots: str = "workflow/tests/demo",
+            vendor_pkg: str = "craft_demo.vendor") -> Run:
         script = TEMPLATE.read_text()
         for token, value in {
             "{{EM_SEMI_REF}}": ref or sha,
-            "{{SRC_ROOTS}}": "workflow/app/demo",
-            "{{TEST_ROOTS}}": "workflow/tests/demo",
+            "{{SRC_ROOTS}}": src_roots,
+            "{{TEST_ROOTS}}": test_roots,
             "{{EXCLUDED_REGEX}}": excluded,
-            "{{VENDOR_PKG}}": "craft_demo.vendor",
+            "{{VENDOR_PKG}}": vendor_pkg,
             "{{IMPORT_REWRITES}}": "\n".join(rewrites or []),
         }.items():
             script = script.replace(token, value)
@@ -117,6 +121,66 @@ def test_vendor_fails_without_em_semi_checkout(render_vendor, tmp_path):
     out = render_vendor(em_semi_path=tmp_path / "missing")
     assert out.returncode != 0
     assert not out.vendor.exists()
+
+
+def test_vendor_fails_on_missing_test_root_without_writing(render_vendor):
+    out = render_vendor(test_roots="workflow/tests/nope")
+    assert out.returncode != 0
+    assert "workflow/tests/nope" in out.stderr
+    assert not out.vendor.exists()
+
+
+def test_vendor_fails_on_missing_src_root_among_several(render_vendor):
+    out = render_vendor(src_roots="workflow/app/demo workflow/app/gone")
+    assert out.returncode != 0
+    assert "workflow/app/gone" in out.stderr
+    assert not out.vendor.exists()
+
+
+def test_vendor_with_no_test_roots_warns_and_vendors_only_sources(render_vendor):
+    out = render_vendor(test_roots="")
+    assert out.returncode == 0, out.stderr
+    assert "0 test files" in out.stderr
+    assert (out.vendor / "demo/calc.py").is_file()
+    assert not any(out.vendor_tests.rglob("*.py"))
+    assert not (out.vendor / "workflow").exists()
+
+
+def test_vendor_with_empty_excluded_regex_excludes_nothing(render_vendor):
+    out = render_vendor(excluded="")
+    assert out.returncode == 0, out.stderr
+    assert (out.vendor / "demo/flow.py").is_file()
+
+
+def test_vendor_refuses_package_not_ending_in_vendor(render_vendor):
+    first = render_vendor()
+    (first.vendor.parent / "nodes.py").write_text("# hand-written\n")
+    out = render_vendor(vendor_pkg="craft_demo")
+    assert out.returncode != 0
+    assert (first.vendor.parent / "nodes.py").is_file()
+
+
+def test_vendor_rewrites_test_tree_imports_and_drops_test_inits(render_vendor):
+    out = render_vendor()
+    assert out.returncode == 0, out.stderr
+    assert "from vendor.demo.test_calc import f" in (out.vendor_tests / "demo/test_more.py").read_text()
+    assert not (out.vendor_tests / "demo/__init__.py").exists()
+
+
+def test_quarantine_skeleton_finds_runner_requirements(tmp_path):
+    import runpy
+
+    craft = tmp_path / "craft"
+    req = craft / "compute-plane-python/python-runner/requirements.txt"
+    req.parent.mkdir(parents=True)
+    req.write_text("numpy==2.0\nscikit-learn==1.5\n")
+    tests_dir = craft / "bundles/demo/job/tests"
+    tests_dir.mkdir(parents=True)
+    rendered = tests_dir / "test_vendor_is_self_contained.py"
+    rendered.write_text((TEMPLATE.parent / "test_vendor_quarantine.py.tmpl").read_text().replace("{{PKG}}", "craft_demo"))
+    module = runpy.run_path(str(rendered))
+    assert module["_REQUIREMENTS"] == req
+    assert {"numpy", "sklearn", "craft_demo"} <= module["PERMITTED_ROOTS"]
 
 
 @pytest.mark.parametrize("name", ["test_vendor_quarantine.py.tmpl", "test_golden.py.tmpl"])

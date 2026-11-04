@@ -408,7 +408,7 @@ Structure (follow `skills/integrate-prototype/SKILL.md`): frontmatter `name: por
 - `--stop-after map` ends after step 1 and writes the inventory to `.harness-results/port-inventory.md`. `plan` ends after step 2 and also writes the node plan. Both emit `run_complete` with `outcome: success` and no PR.
 - `--no-pr` runs through verify, commits on the branch, and skips push, PR and Jira.
 - A **Failure handling** section covering the Review Focus cases: unknown workflow (fail before branching; list searched specs); em-semi checkout/ref problems (fail early); pre-existing em-semi test failures (gap report, `partial`, never edit vendored code); existing target bundle (re-vendor via script, keep `patches/`, `nodes/` and stand-ins); anything with no reasonable stand-in (draft PR, `partial`).
-- Verify step: `/verify-and-fix {jira-key} --gates linter,tests,evals,code-review` with the target bundle's own commands (`uv run ruff format --check`, `uv run ruff check`, `uv run pytest`), plus `craft bundle build` (see craft's `.claude/skills/craft-bundle/SKILL.md`).
+- Verify step: `/verify-and-fix {jira-key} --gates linter,tests,evals,review` with the target bundle's own commands (`uv run ruff format --check`, `uv run ruff check`, `uv run pytest`), plus `craft bundle build` (see craft's `.claude/skills/craft-bundle/SKILL.md`).
 - PR title `[Jira:KEY] port(<workflow>): ...`; gap report in the body; never auto-merge, never `nojira`.
 
 - [ ] **Step 1: Extend tests**

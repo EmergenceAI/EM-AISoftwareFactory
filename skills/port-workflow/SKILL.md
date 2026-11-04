@@ -152,6 +152,9 @@ Emit provenance event: `{"event": "step_complete", "step": "create_branch", "bra
 
 ## Step 4 — Write and Run the Vendor Script
 
+**Existing bundle** (a re-run): do not regenerate the script, nodes, shims or tests. Follow
+*Failure handling → Target bundle already exists*.
+
 Lay the bundle out as analog-trim does: `job/` is a uv project, the package is `craft_<slug>`, and
 the only runtime dependency is `craft-job-sdk`.
 
@@ -161,13 +164,19 @@ the tokens:
 - `{{SRC_ROOTS}}`: the copy and both modules, as em-semi paths, space-separated. List whole
   packages as directories.
 - `{{TEST_ROOTS}}`: the em-semi test paths.
-- `{{EXCLUDED_REGEX}}`: the orchestration file(s) only. A large orchestration module that holds
-  real logic is **not** excluded; it is vendored as-is.
+- `{{EXCLUDED_REGEX}}`: the orchestration file(s) only, anchored on the full path, e.g.
+  `/cross_product_analysis/flow\.py$`. It also applies to test paths, so a loose `flow\.py` would
+  drop `test_flow.py`. A large orchestration module that holds real logic is **not** excluded; it
+  is vendored as-is. If nothing is excluded, leave the regex empty.
 - `{{VENDOR_PKG}}`: `craft_<slug>.vendor`.
 - `{{IMPORT_REWRITES}}`: one `perl` substitution per redirect, e.g.
   `s{^from common_semi\.observe import }{from craft_<slug>.vendor._observe import };`.
 
-Run it.
+The script already rewrites `app.` → `craft_<slug>.vendor.`, `common_semi.` →
+`craft_<slug>.vendor.common_semi.`, and, in tests, `tests.` → `vendor.`. It drops test-tree
+`__init__.py` files. The rules sit inside a single-quoted `perl -pe '…'`, so never use a `'` in
+them. Run it. It refuses a root that doesn't exist at the ref, and warns if it vendored 0 tests;
+record that in the gap report.
 
 **Never hand-edit a vendored file.** A platform call inside a module that has to be vendored is
 fixed by an import rewrite or by a numbered patch under `<bundle>/job/patches/` (`git diff` →
@@ -179,6 +188,9 @@ Emit provenance event: `{"event": "step_complete", "step": "vendor", "files": N,
 ---
 
 ## Step 5 — Write Shims and Stand-ins
+
+**Existing bundle**: add only the shims and stand-ins the new pin needs, and keep the rest. See
+*Failure handling*.
 
 Write one module per redirect, following the call map. Shims live at the vendor top level
 (`vendor/_*.py`; the vendor script preserves them). `CraftContext` and node helpers live in the
@@ -200,6 +212,9 @@ Emit provenance event: `{"event": "step_complete", "step": "shims", "shims": N, 
 
 ## Step 6 — Write bundle.yaml and Node Modules
 
+**Existing bundle**: edit `bundle.yaml` and nodes only where the new pin requires it. Never
+regenerate them. See *Failure handling*.
+
 Write `<bundle>/bundle.yaml` from the Step 2 plan. Write one thin `craft_<slug>/nodes/<node>.py`
 per node: bind inputs, build the context, call vendored functions, return the node output. No
 analysis logic lives in nodes.
@@ -212,12 +227,15 @@ Emit provenance event: `{"event": "step_complete", "step": "bundle", "nodes": N}
 
 ## Step 7 — Fixtures and Parity Checks
 
-Two layers (see *Parity* in `references/porting-model.md`).
+Two layers (see *Parity* in `references/porting-model.md`). **Existing bundle**: keep the
+existing tests and fixtures. Regenerate goldens only through `make_fixtures.py`, and only when the
+pin changed. See *Failure handling*.
 
 **Static tests**
-- The vendored em-semi tests run against the vendored code; they are the oracle. A test that
-  already fails at the pinned ref is quarantined by nodeid in `job/tests/conftest.py` with
-  `xfail(strict=True)` and listed in the gap report.
+- The vendored em-semi tests run against the vendored code; they are the oracle. A failing
+  vendored test is a **port defect** unless it is proven pre-existing (see *Failure handling*).
+  Only a proven one is quarantined, by nodeid, in `job/tests/conftest.py` with
+  `xfail(strict=True)`.
 - `scripts/make_fixtures.py` and `tests/_golden.py` generate `fixtures/golden-node-outputs.json`
   from craft's own nodes over the fixtures. Fill in `templates/test_golden.py.tmpl` as
   `job/tests/test_<slug>_golden.py` (`{{PKG}}`, `{{NODES}}`). LLM text goes in `LLM_TEXT_PATHS`,
@@ -256,8 +274,8 @@ Emit provenance event: `{"event": "step_complete", "step": "gap_report", "stand_
 ## Step 9 — Verify
 
 From `<bundle>/job`: `uv run ruff format --check .`, `uv run ruff check .`, `uv run pytest -q`,
-then run the evals. Then `craft bundle build <bundle>`. Run
-`/verify-and-fix <JIRA-KEY> --gates linter,tests,evals,code-review` with those commands. Fixes go
+then run the evals. Then `craft bundle build <bundle>`. Never commit `.harness-results/`. Run
+`/verify-and-fix <JIRA-KEY> --gates linter,tests,evals,review` with those commands. Fixes go
 into craft-side code, shims, stand-ins or patches, **never into vendored files**.
 
 Commit: `[Jira:<KEY>] port(<workflow>): vendor em-semi <sha7>, bundle, parity tests`.
@@ -298,9 +316,17 @@ Emit provenance event: `{"event": "step_complete", "step": "jira_update"}` then 
   the closest matches, then `run_complete` with `outcome: failed`.
 - **em-semi checkout missing, or the pinned ref doesn't resolve**: stop in Step 0 with
   `outcome: failed`. The vendor script also refuses before writing anything.
-- **Pre-existing em-semi test failures** at the pinned ref: quarantine them by nodeid
-  (`xfail(strict=True)`), list them in the gap report, and finish `partial` if any are in code
-  this workflow uses. Never make them pass by editing vendored code.
+- **Pre-existing em-semi test failures** at the pinned ref. "Em-semi itself is never run"
+  applies to the parity checks, not to this proof. Prove a failure is pre-existing by running
+  the same test in an export of em-semi's own tree at the pinned ref (`git archive`):
+  `git -C $EM_SEMI archive <sha> workflow common | tar -x -C /tmp/em-semi-<sha>`, then run it there
+  with em-semi's test setup. That keeps em-semi read-only. Or cite em-semi CI for that sha.
+  Record the evidence in the gap report.
+  - Never treat an ImportError or a collection error as pre-existing. Those come from the
+    rewrites or shims, and must be fixed with a rewrite, shim or patch.
+  - Never make a failure pass by editing vendored code.
+  - With proof: quarantine it by nodeid (`xfail(strict=True)`), list it, and finish `partial`.
+  - Without proof: it's a port defect. Fix it, or finish `partial` with it failing and listed.
 - **Target bundle already exists** (a re-run): don't wipe it. Re-run its vendor script, bumping
   `EM_SEMI_REF` in its own commit if the pin changes. Keep `patches/`, `nodes/`, shims and
   stand-ins, and regenerate goldens only through `make_fixtures.py`. A patch that no longer

@@ -17,8 +17,12 @@
 #   EM_SEMI=~/Documents/Development/em-semi ./scripts/vendor_workflow.sh
 #
 # Layout: em-semi's `workflow/app/<x>` lands at `vendor/<x>`, `common/<x>` at `vendor/<x>`, and
-# `workflow/tests/<x>` at `tests/vendor/<x>`. Top-level `vendor/_*.py` (shims) and
+# `workflow/tests/<x>` at `tests/vendor/<x>` (minus its `__init__.py` files, as analog-trim does;
+# `tests.<x>` imports become `vendor.<x>`). Top-level `vendor/_*.py` (shims) and
 # `vendor/__init__.py` are craft's own and survive a re-vendor; everything else is rewritten.
+#
+# EXCLUDED_REGEX is matched against full em-semi paths, test paths included: write `/flow\.py$`,
+# not `flow\.py`, or `test_flow.py` goes too. Empty means nothing is excluded.
 set -euo pipefail
 
 EM_SEMI="${EM_SEMI:-$HOME/Documents/Development/em-semi}"
@@ -28,6 +32,13 @@ SRC_ROOTS=({{SRC_ROOTS}})
 TEST_ROOTS=({{TEST_ROOTS}})
 EXCLUDED_REGEX='{{EXCLUDED_REGEX}}'
 VENDOR_PKG='{{VENDOR_PKG}}'
+
+# The wipe below clears the top level of the vendor package. Pointed at the package itself it
+# would take nodes/ and context.py with it.
+case "$VENDOR_PKG" in
+  *.vendor) ;;
+  *) echo "VENDOR_PKG must name the vendor subpackage (<pkg>.vendor), got '$VENDOR_PKG'" >&2; exit 1 ;;
+esac
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 vendor="$here/src/${VENDOR_PKG//.//}"
@@ -44,27 +55,44 @@ if ! git -C "$EM_SEMI" rev-parse --verify --quiet "$EM_SEMI_REF^{commit}" >/dev/
   exit 1
 fi
 
+# Every named root must exist at the ref. A missing test root would otherwise vendor zero tests
+# and drop the parity oracle with exit code 0.
+for root in ${SRC_ROOTS[@]+"${SRC_ROOTS[@]}"} ${TEST_ROOTS[@]+"${TEST_ROOTS[@]}"}; do
+  if ! git -C "$EM_SEMI" cat-file -e "$EM_SEMI_REF:$root" 2>/dev/null; then
+    echo "$root does not exist in em-semi at $EM_SEMI_REF" >&2
+    exit 1
+  fi
+done
+
+# With no paths, `git ls-tree` would list all of em-semi, so an empty root list lists nothing.
 list_files() {
-  git -C "$EM_SEMI" ls-tree -r --name-only "$EM_SEMI_REF" -- "$@" | grep -vE "$EXCLUDED_REGEX" | sort || true
+  [ "$#" -gt 0 ] || return 0
+  git -C "$EM_SEMI" ls-tree -r --name-only "$EM_SEMI_REF" -- "$@" |
+    if [ -n "$EXCLUDED_REGEX" ]; then grep -vE "$EXCLUDED_REGEX" || true; else cat; fi | sort
 }
 
-sources="$(list_files "${SRC_ROOTS[@]}")"
-tests="$(list_files "${TEST_ROOTS[@]}")"
+sources="$(list_files ${SRC_ROOTS[@]+"${SRC_ROOTS[@]}"})"
+tests="$(list_files ${TEST_ROOTS[@]+"${TEST_ROOTS[@]}"} | grep -vE '(^|/)__init__\.py$' || true)"
 if [ -z "$sources" ]; then
-  echo "nothing to vendor under ${SRC_ROOTS[*]} at $EM_SEMI_REF" >&2
+  echo "nothing to vendor under ${SRC_ROOTS[*]-} at $EM_SEMI_REF" >&2
   exit 1
 fi
 
 # Platform redirects (from the port's inventory) run first; the generic rules then point every
 # remaining em-semi import at the vendored copy. An import left pointing at something that was not
 # vendored is what the self-containment test refuses.
+rewrite_python() {
+  perl -pe '
+{{IMPORT_REWRITES}}
+    s{(?<![\w.])app\.}{'"$VENDOR_PKG"'.}g;
+    s{(?<![\w.])common_semi\.}{'"$VENDOR_PKG"'.common_semi.}g;
+  '
+}
+
 rewrite() {
   case "$1" in
-    *.py) perl -pe '
-{{IMPORT_REWRITES}}
-      s{(?<![\w.])app\.}{'"$VENDOR_PKG"'.}g;
-      s{(?<![\w.])common_semi\.}{'"$VENDOR_PKG"'.common_semi.}g;
-    ' ;;
+    workflow/tests/*.py) rewrite_python | perl -pe 's{(?<![\w.])tests\.}{vendor.}g' ;;
+    *.py) rewrite_python ;;
     *) cat ;;
   esac
 }
@@ -112,4 +140,8 @@ if compgen -G "$patches/*.patch" >/dev/null; then
   done
 fi
 
-echo "vendored $(wc -l <<<"$sources" | tr -d ' ') source and $(grep -c . <<<"$tests" || true) test files from $EM_SEMI_REF"
+n_tests="$(grep -c . <<<"$tests" || true)"
+if [ "$n_tests" -eq 0 ]; then
+  echo "warning: vendored 0 test files from $EM_SEMI_REF; the parity oracle is empty (record it in PORT_GAPS.md)" >&2
+fi
+echo "vendored $(wc -l <<<"$sources" | tr -d ' ') source and $n_tests test files from $EM_SEMI_REF"
