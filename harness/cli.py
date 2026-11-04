@@ -110,19 +110,60 @@ def cmd_implement(args):
 
     print(f"\n{'='*60}")
     print(f"AI Software Factory - Workspace Harness")
-    skill_mode = True  # always skill mode — harness mode removed in this branch
-    mode = "skill"
-    print(f"Mode: {mode}")
+    print(f"Mode: skill")
     print(f"{'='*60}\n")
 
     workspace_config = load_workspace_config()
-    factory_root = Path(__file__).parent.parent
 
     print(f"📋 Issue: {args.issue_key}")
     repository = _resolve_repository(args, workspace_config)
     print()
 
-    # Skill mode with provenance monitoring
+    _run_skill_with_provenance(
+        args.issue_key,
+        repository,
+        skill="autonomous-implement",
+        skill_args=[args.issue_key],
+        skill_options={"branch": getattr(args, 'branch', None)},
+    )
+
+
+def cmd_port(args):
+    """Port an em-semi workflow into craft via the /port-workflow skill."""
+
+    print(f"\n{'='*60}")
+    print(f"AI Software Factory - Port Workflow")
+    print(f"{'='*60}\n")
+    print(f"📦 Workflow: {args.workflow}  |  Jira: {args.jira_key}\n")
+
+    _run_skill_with_provenance(
+        args.jira_key,
+        "craft",
+        skill="port-workflow",
+        skill_args=[args.workflow],
+        skill_options={
+            "jira-key": args.jira_key,
+            "em-semi-ref": args.em_semi_ref,
+            "target-bundle": args.target_bundle,
+            "stop-after": args.stop_after,
+            "no-pr": "" if args.no_pr else None,
+            "branch": args.branch,
+        },
+    )
+
+
+def _run_skill_with_provenance(
+    issue_key: str,
+    repository: str,
+    *,
+    skill: str,
+    skill_args: List[str],
+    skill_options: dict,
+) -> None:
+    """Run one factory skill in `repository` with provenance, watchdog and checkpoints; exits."""
+    workspace_config = load_workspace_config()
+    factory_root = Path(__file__).parent.parent
+
     start_time = time.time()
     run_id = f"run_{int(start_time)}_{uuid.uuid4().hex[:8]}"
     prov_dir = factory_root / "provenance"
@@ -142,8 +183,8 @@ def cmd_implement(args):
         if repo_path:
             (repo_path / ".harness-results").mkdir(exist_ok=True)
 
-        provenance.start_run(run_id, args.issue_key, repository, str(repo_path or ''))
-        print(f"\n🏭 Run {run_id}  |  {args.issue_key} → {repository}")
+        provenance.start_run(run_id, issue_key, repository, str(repo_path or ''))
+        print(f"\n🏭 Run {run_id}  |  {issue_key} → {repository}")
 
         watchdog = Watchdog(run_id=run_id, on_warn=lambda s, e: print(f"⚠️  {s} running {e/60:.0f}m"), on_kill=lambda s, e: print(f"🔴  killing {s}"))
         watchdog.start()
@@ -153,7 +194,7 @@ def cmd_implement(args):
         def _noop_server_call(fn, *a, **kw): pass
 
         result = executor.execute_with_provenance(
-            issue_key=args.issue_key,
+            issue_key=issue_key,
             repository=repository,
             run_id=run_id,
             provenance=provenance,
@@ -161,14 +202,16 @@ def cmd_implement(args):
             checkpoint=checkpoint,
             circuit_breaker=circuit_breaker,
             server_call=_noop_server_call,
-            branch=getattr(args, 'branch', None),
+            skill=skill,
+            skill_args=skill_args,
+            skill_options=skill_options,
         )
 
         watchdog.stop()
         outcome = "success" if result.success else "partial" if result.pr_url else "failed"
         provenance.finish_run(
             run_id=run_id,
-            issue_key=args.issue_key,
+            issue_key=issue_key,
             repository=repository,
             overall_outcome=outcome,
             gate_attempts=0,
@@ -696,12 +739,8 @@ def cmd_runs(args):
     print()
 
 
-def main():
-    """Main CLI entry point."""
-    # Shorthand: python -m harness SEMI-1665  →  python -m harness implement SEMI-1665
-    if len(sys.argv) > 1 and not sys.argv[1].startswith('-') and '-' in sys.argv[1] and sys.argv[1].upper() == sys.argv[1]:
-        sys.argv.insert(1, 'implement')
-
+def build_parser() -> argparse.ArgumentParser:
+    """Build the harness argument parser."""
     parser = argparse.ArgumentParser(
         description='AI Software Factory - Workspace-level harness',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -715,6 +754,9 @@ Examples:
 
   # Implement across multiple repositories
   python -m harness.cli multi-repo SDK-456 --repos sdk,runtime,runtime-ui
+
+  # Port an em-semi workflow into craft
+  python -m harness.cli port cross_product_analysis --jira-key SEMI-123
 
   # Execute sprint (delegates to /autonomous-sprint)
   python -m harness.cli sprint --jql "sprint in openSprints()"
@@ -769,6 +811,22 @@ Examples:
         help='Use an existing branch instead of creating a new one (e.g. observability-healthchecks)',
     )
     implement.set_defaults(func=cmd_implement)
+
+    # port command
+    port = subparsers.add_parser(
+        'port',
+        help='Port an em-semi workflow into craft (/port-workflow)'
+    )
+    port.add_argument('workflow', help='em-semi workflow package or spec name (e.g. cross_product_analysis)')
+    port.add_argument('--jira-key', required=True, help='Jira key; craft requires one for every commit and PR')
+    port.add_argument('--em-semi-ref', default=None, help='em-semi commit to pin (default: origin/main resolved at start)')
+    port.add_argument('--target-bundle', default=None, help='Path in craft where the port lands')
+    port.add_argument('--stop-after', choices=['map', 'plan', 'port'], default=None,
+                      help='Stop after mapping, node planning, or the port (no PR before "port")')
+    port.add_argument('--no-pr', action='store_true', default=False,
+                      help='Commit on the branch but do not push, open a PR or update Jira')
+    port.add_argument('--branch', default=None, help='Use an existing branch in craft')
+    port.set_defaults(func=cmd_port)
 
     # multi-repo command
     multi = subparsers.add_parser(
@@ -872,6 +930,17 @@ Examples:
     runs_cmd.add_argument('--outcome', choices=['success', 'partial', 'failed'], help='Filter by outcome')
     runs_cmd.add_argument('--limit', type=int, default=20, help='Maximum rows to show (default: 20)')
     runs_cmd.set_defaults(func=cmd_runs)
+
+    return parser
+
+
+def main():
+    """Main CLI entry point."""
+    # Shorthand: python -m harness SEMI-1665  →  python -m harness implement SEMI-1665
+    if len(sys.argv) > 1 and not sys.argv[1].startswith('-') and '-' in sys.argv[1] and sys.argv[1].upper() == sys.argv[1]:
+        sys.argv.insert(1, 'implement')
+
+    parser = build_parser()
 
     # Parse and execute
     args = parser.parse_args()
