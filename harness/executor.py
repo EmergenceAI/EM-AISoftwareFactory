@@ -227,6 +227,31 @@ class ExecutionResult:
         return "\n".join(lines)
 
 
+def build_skill_prompt(
+    skill: str,
+    positional: List[str],
+    options: Dict[str, Optional[str]],
+    context_file: Path,
+    events_path: Path,
+) -> str:
+    """
+    Build the `claude -p` prompt that invokes a factory skill.
+
+    Options with a None value are omitted. `branch` is always emitted last, after
+    --provenance-file, so the /autonomous-implement prompt stays byte-identical to
+    the one the harness built before skills became configurable.
+    """
+    parts = [f"/{skill}", *positional]
+    branch = options.get("branch")
+    for key, value in options.items():
+        if key != "branch" and value is not None:
+            parts += [f"--{key}", value]
+    parts += ["--context-file", str(context_file), "--provenance-file", str(events_path)]
+    if branch is not None:
+        parts += ["--branch", branch]
+    return " ".join(parts)
+
+
 class Executor:
     """
     Executes tasks by delegating to existing /autonomous-implement skill.
@@ -348,10 +373,14 @@ class Executor:
         circuit_breaker: CircuitBreaker,
         server_call,
         branch: Optional[str] = None,
+        skill: str = "autonomous-implement",
+        skill_args: Optional[List[str]] = None,
+        skill_options: Optional[Dict[str, Optional[str]]] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
-        Starts one Claude session and monitors the skill-written provenance events file.
+        Starts one Claude session running `skill` (default /autonomous-implement {issue_key})
+        and monitors the skill-written provenance events file.
         """
         start_time = time.time()
 
@@ -390,13 +419,16 @@ class Executor:
             )
             monitor.start(events_path)
 
-            prompt = (
-                f"/autonomous-implement {issue_key}"
-                f" --context-file {context_file}"
-                f" --provenance-file {events_path}"
-            )
+            options = dict(skill_options or {})
             if branch:
-                prompt += f" --branch {branch}"
+                options["branch"] = branch
+            prompt = build_skill_prompt(
+                skill,
+                skill_args if skill_args is not None else [issue_key],
+                options,
+                context_file,
+                events_path,
+            )
             cmd = [
                 'claude',
                 '--plugin-dir', str(self.factory_root),
@@ -404,7 +436,7 @@ class Executor:
                 '-p', prompt,
             ]
 
-            print(f"\n\U0001f680 Launching claude for {issue_key} in {repo_path.name}...")
+            print(f"\n\U0001f680 Launching claude /{skill} for {issue_key} in {repo_path.name}...")
             proc = subprocess.run(
                 cmd,
                 cwd=str(repo_path),
