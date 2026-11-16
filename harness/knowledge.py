@@ -50,14 +50,17 @@ class KnowledgeEngine:
                 'architecture': '',
                 'patterns': '',
                 'conventions': '',
-                'dependencies': ''
+                'dependencies': '',
+                'output_style': '',
             }
 
         knowledge = {
             'architecture': self._load_markdown(repo_knowledge_dir / 'architecture.md'),
             'patterns': self._load_markdown(repo_knowledge_dir / 'patterns.md'),
             'conventions': self._load_markdown(repo_knowledge_dir / 'conventions.md'),
-            'dependencies': self._load_markdown(repo_knowledge_dir / 'dependencies.md')
+            'dependencies': self._load_markdown(repo_knowledge_dir / 'dependencies.md'),
+            # output_style is optional — only present for repos with chart/report conventions
+            'output_style': self._load_markdown(repo_knowledge_dir / 'output_style.md'),
         }
 
         # Cache it

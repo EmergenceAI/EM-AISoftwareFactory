@@ -15,16 +15,34 @@ rather than reimplementing the SDLC workflow.
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
+import ast
 import subprocess
 import tempfile
 import time
 import threading
+import uuid
 import json
+import textwrap
 
 from .provenance import ProvenanceLogger, StepRecord, GateRecord
 from .watchdog import Watchdog
 from .checkpoint import Checkpoint
 from .circuit_breaker import CircuitBreaker
+
+# Placeholder issue keys used by the CLI when running from a local spec or
+# prototype with no Jira ticket. These must never be passed as --jira-key.
+_LOCAL_ISSUE_KEYS = frozenset({"SPEC-LOCAL", "PROTO-LOCAL"})
+
+# Prototype .py files at or below this size are injected into the knowledge
+# context file in full; larger files get a structural summary (module
+# docstring, UPPER_CASE constants, def/class signatures) instead. This keeps
+# the context file within a reasonable share of the skill's context window,
+# while the skill can still Read the full source at the absolute path we emit.
+PROTOTYPE_INLINE_THRESHOLD_BYTES = 40_000  # ~1000 lines of Python
+
+
+def _is_local_issue_key(issue_key: Optional[str]) -> bool:
+    return issue_key in _LOCAL_ISSUE_KEYS
 
 
 class EventMonitor:
@@ -128,9 +146,9 @@ class EventMonitor:
             self._server_call("update_run", self.run_id, current_step=step)
             print(f"   ▶  {step}")
 
-        elif ev == "step_end":
+        elif ev in ("step_end", "step_complete"):
             step = event["step"]
-            success = event.get("success", False)
+            success = event.get("success", True)  # step_complete implies success
             t0 = self._step_starts.get(step, now)
             duration_ms = (now - t0) * 1000
             record = StepRecord(
@@ -141,8 +159,9 @@ class EventMonitor:
                 error=event.get("error"),
             )
             self.provenance.log_step(self.run_id, record)
-            completed = self.checkpoint.completed_steps() + [step]
-            self.checkpoint.write(self.run_id, self.issue_key, completed)
+            if self.checkpoint:
+                completed = self.checkpoint.completed_steps() + [step]
+                self.checkpoint.write(self.run_id, self.issue_key, completed)
             icon = "✅" if success else "❌"
             print(f"   {icon}  {step}")
 
@@ -348,6 +367,9 @@ class Executor:
         circuit_breaker: CircuitBreaker,
         server_call,
         branch: Optional[str] = None,
+        spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
+        workflow_name: Optional[str] = None,
     ) -> TaskResult:
         """
         Execute issue with full observability: provenance, watchdog, checkpoint, circuit breaker.
@@ -369,6 +391,13 @@ class Executor:
             if events_path.exists():
                 events_path.unlink()
 
+            # Remove any orphaned context files left by a crashed prior run
+            for stale in repo_path.glob(f'.knowledge_context_{repo_config["name"]}_*.md'):
+                try:
+                    stale.unlink()
+                except OSError:
+                    pass
+
             knowledge_context = self.knowledge_engine.get_repository_knowledge(repository)
             foundations = self.knowledge_engine.get_foundations_guidance('standards')
             context_file = self._create_knowledge_context_file(
@@ -376,6 +405,8 @@ class Executor:
                 foundations_standards=foundations.get('standards', ''),
                 repo_config=repo_config,
                 repo_path=repo_path,
+                spec_file=spec_file,
+                prototype_dir=prototype_dir,
             )
 
             monitor = EventMonitor(
@@ -390,11 +421,39 @@ class Executor:
             )
             monitor.start(events_path)
 
-            prompt = (
-                f"/autonomous-implement {issue_key}"
-                f" --context-file {context_file}"
-                f" --provenance-file {events_path}"
-            )
+            # Skill routing:
+            #   prototype (with or without spec) → /integrate-prototype
+            #   spec only                        → /implement-workflow
+            #   neither                          → /autonomous-implement
+            if prototype_dir:
+                skill_name = "integrate-prototype"
+                prompt = (
+                    f"/{skill_name} --prototype-dir {prototype_dir}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
+                if spec_file:
+                    prompt += f" --spec-file {spec_file}"
+                if workflow_name:
+                    prompt += f" --workflow-name {workflow_name}"
+                if issue_key and not _is_local_issue_key(issue_key):
+                    prompt += f" --jira-key {issue_key}"
+            elif spec_file:
+                skill_name = "implement-workflow"
+                prompt = (
+                    f"/{skill_name} --spec-file {spec_file}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
+                if issue_key and not _is_local_issue_key(issue_key):
+                    prompt += f" --jira-key {issue_key}"
+            else:
+                skill_name = "autonomous-implement"
+                prompt = (
+                    f"/{skill_name} {issue_key}"
+                    f" --context-file {context_file}"
+                    f" --provenance-file {events_path}"
+                )
             if branch:
                 prompt += f" --branch {branch}"
             cmd = [
@@ -412,8 +471,26 @@ class Executor:
                 timeout=7200,  # 2-hour hard ceiling
             )
 
-            final = monitor.wait_for_complete(timeout=30)
+            final = monitor.wait_for_complete(timeout=60)
             monitor.stop()
+
+            # Fallback: if monitor missed run_complete (e.g. all events flushed at exit),
+            # scan the events file directly for the last run_complete line.
+            if final is None and events_path.exists():
+                try:
+                    for raw in reversed(events_path.read_text().splitlines()):
+                        raw = raw.strip()
+                        if not raw:
+                            continue
+                        try:
+                            ev = json.loads(raw)
+                        except json.JSONDecodeError:
+                            continue
+                        if ev.get("event") == "run_complete":
+                            final = ev
+                            break
+                except OSError:
+                    pass
 
             if context_file.exists():
                 context_file.unlink()
@@ -553,6 +630,8 @@ class Executor:
         foundations_standards: str,
         repo_config: Dict,
         repo_path: Path,
+        spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
     ) -> Path:
         """
         Create knowledge context file inside the target repo directory.
@@ -568,6 +647,88 @@ class Executor:
         Returns:
             Path to temporary context file
         """
+        # Inject spec file content if provided
+        spec_section = ""
+        if spec_file:
+            try:
+                spec_content = Path(spec_file).read_text()
+                spec_section = f"""
+---
+
+## Workflow Specification (primary task description)
+
+{spec_content}
+
+---
+"""
+            except Exception:
+                spec_section = ""
+
+        # Inject prototype source files if provided.
+        # See PROTOTYPE_INLINE_THRESHOLD_BYTES for the full-vs-summary rule.
+        prototype_section = ""
+        if prototype_dir:
+            proto_path = Path(prototype_dir)
+            py_files = sorted(proto_path.glob("**/*.py"))
+            parts = [
+                "\n---\n\n## Prototype Source Files\n\n"
+                f"Prototype directory: `{prototype_dir}`\n\n"
+                "Files marked **[FULL SOURCE]** are injected in full. "
+                "Files marked **[SUMMARY ONLY]** are large — use the `Read` tool "
+                "on their absolute path to access the full source during skill execution.\n"
+            ]
+            for f in sorted(py_files, key=lambda x: x.stat().st_size):
+                rel = f.relative_to(proto_path)
+                try:
+                    src = f.read_text()
+                    size_kb = f.stat().st_size / 1024
+                    if f.stat().st_size <= PROTOTYPE_INLINE_THRESHOLD_BYTES:
+                        parts.append(f"\n### `{rel}` — {size_kb:.0f} KB [FULL SOURCE]\n\n```python\n{src}\n```\n")
+                    else:
+                        # Extract: module docstring + all def/class signatures
+                        summary_lines = []
+                        try:
+                            tree = ast.parse(src)
+                            # module docstring
+                            if (isinstance(tree.body[0], ast.Expr) and
+                                    isinstance(tree.body[0].value, ast.Constant)):
+                                doc = textwrap.shorten(tree.body[0].value.s, width=400, placeholder="...")
+                                summary_lines.append(f'"""{doc}"""\n')
+                            # top-level constants (UPPER_CASE assignments)
+                            for node in tree.body:
+                                if isinstance(node, ast.Assign):
+                                    for t in node.targets:
+                                        if isinstance(t, ast.Name) and t.id.isupper():
+                                            line = src.splitlines()[node.lineno - 1].strip()
+                                            summary_lines.append(line)
+                            # function and class signatures
+                            for node in ast.walk(tree):
+                                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                                    sig = src.splitlines()[node.lineno - 1].strip()
+                                    fdoc = ast.get_docstring(node)
+                                    fdoc_short = textwrap.shorten(fdoc, width=120, placeholder="...") if fdoc else ""
+                                    summary_lines.append(f"{sig}")
+                                    if fdoc_short:
+                                        summary_lines.append(f'    """{fdoc_short}"""')
+                        except Exception:
+                            summary_lines = src.splitlines()[:60]
+                        summary = "\n".join(summary_lines)
+                        parts.append(
+                            f"\n### `{rel}` — {size_kb:.0f} KB [SUMMARY ONLY]\n"
+                            f"**Full path:** `{f.resolve()}`  — use `Read` tool to access full source.\n\n"
+                            f"```python\n{summary}\n```\n"
+                        )
+                except Exception as exc:
+                    # Surface the failure both to the operator and to the skill,
+                    # so a missing file is never silently dropped from the context.
+                    print(f"   ⚠️  Could not read prototype file {f}: {exc}")
+                    parts.append(
+                        f"\n### `{rel}` — ⚠️ COULD NOT READ: {exc}\n"
+                        f"**Full path:** `{f.resolve()}`  — try the `Read` tool directly.\n"
+                    )
+            parts.append("\n---\n")
+            prototype_section = "\n".join(parts)
+
         context = f"""# Repository Knowledge Context
 # This context is automatically injected by the harness
 
@@ -575,7 +736,7 @@ class Executor:
 **Display Name:** {repo_config.get('display_name', repo_config['name'])}
 **Language:** {repo_config.get('language', 'unknown')}
 **Build System:** {repo_config.get('build_system', 'unknown')}
-
+{spec_section}{prototype_section}
 ---
 
 ## Architecture
@@ -587,6 +748,12 @@ class Executor:
 ## Coding Patterns
 
 {knowledge_context.get('patterns', 'No coding patterns documented.')}
+
+---
+
+## Output Style (charts and reports)
+
+{knowledge_context.get('output_style', 'See output_style.md for chart conventions.')}
 
 ---
 
@@ -621,8 +788,10 @@ When implementing this issue:
 
         # Write into the repo dir so the subprocess claude session can read it
         # without hitting an out-of-allowed-directory permission prompt.
-        # _invoke_skill_via_subprocess deletes it after claude exits.
-        context_file = repo_path / f'.knowledge_context_{repo_config["name"]}.md'
+        # UUID suffix ensures each run gets a unique file — stale files from
+        # a prior run (crash, kill, or incomplete cleanup) can never bleed
+        # context into a new run for the same repo.
+        context_file = repo_path / f'.knowledge_context_{repo_config["name"]}_{uuid.uuid4().hex[:12]}.md'
         context_file.write_text(context)
         return context_file
 
@@ -630,23 +799,43 @@ When implementing this issue:
         self,
         issue_key: str,
         context_file: Path,
-        repo_path: Path
+        repo_path: Path,
+        spec_file: Optional[str] = None,
+        prototype_dir: Optional[str] = None,
+        workflow_name: Optional[str] = None,
     ) -> Dict:
         """
-        Invoke /autonomous-implement skill by shelling out to the claude CLI.
+        Invoke the appropriate skill by shelling out to the claude CLI.
 
-        Runs claude headlessly (-p) with the factory plugin dir so all skills
-        are available, then passes the skill invocation as the initial prompt.
+        Routing:
+          prototype (±spec) → /integrate-prototype
+          spec only         → /implement-workflow
+          neither           → /autonomous-implement
 
         Args:
-            issue_key: Jira issue key
+            issue_key: Jira issue key (or PROTO-LOCAL / SPEC-LOCAL placeholder)
             context_file: Path to knowledge context file (persists until skill completes)
             repo_path: Repository path (used as cwd for the claude process)
+            spec_file: Optional path to a workflow spec .md file
+            prototype_dir: Optional path to a directory of prototype .py files
 
         Returns:
             Execution result dictionary
         """
-        prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
+        if prototype_dir:
+            prompt = f"/integrate-prototype --prototype-dir {prototype_dir} --context-file {context_file}"
+            if spec_file:
+                prompt += f" --spec-file {spec_file}"
+            if workflow_name:
+                prompt += f" --workflow-name {workflow_name}"
+            if issue_key and not _is_local_issue_key(issue_key):
+                prompt += f" --jira-key {issue_key}"
+        elif spec_file:
+            prompt = f"/implement-workflow --spec-file {spec_file} --context-file {context_file}"
+            if issue_key and not _is_local_issue_key(issue_key):
+                prompt += f" --jira-key {issue_key}"
+        else:
+            prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
 
         cmd = [
             'claude',
@@ -655,9 +844,20 @@ When implementing this issue:
             '-p', prompt,
         ]
 
-        print(f"\n🚀 Launching claude to implement {issue_key} in {repo_path.name}...")
-        print(f"   Plugin: {self.factory_root}")
-        print(f"   Context: {context_file}\n")
+        if prototype_dir:
+            skill_label = "integrate-prototype"
+        elif spec_file:
+            skill_label = "implement-workflow"
+        else:
+            skill_label = f"implement {issue_key}"
+        print(f"\n🚀 Launching claude to {skill_label} in {repo_path.name}...")
+        print(f"   Plugin:    {self.factory_root}")
+        print(f"   Context:   {context_file}")
+        if prototype_dir:
+            print(f"   Prototype: {prototype_dir}")
+        if spec_file:
+            print(f"   Spec:      {spec_file}")
+        print()
 
         try:
             result = subprocess.run(
