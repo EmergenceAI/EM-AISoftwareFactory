@@ -15,16 +15,34 @@ rather than reimplementing the SDLC workflow.
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
+import ast
 import subprocess
 import tempfile
 import time
 import threading
+import uuid
 import json
+import textwrap
 
 from .provenance import ProvenanceLogger, StepRecord, GateRecord
 from .watchdog import Watchdog
 from .checkpoint import Checkpoint
 from .circuit_breaker import CircuitBreaker
+
+# Placeholder issue keys used by the CLI when running from a local spec or
+# prototype with no Jira ticket. These must never be passed as --jira-key.
+_LOCAL_ISSUE_KEYS = frozenset({"SPEC-LOCAL", "PROTO-LOCAL"})
+
+# Prototype .py files at or below this size are injected into the knowledge
+# context file in full; larger files get a structural summary (module
+# docstring, UPPER_CASE constants, def/class signatures) instead. This keeps
+# the context file within a reasonable share of the skill's context window,
+# while the skill can still Read the full source at the absolute path we emit.
+PROTOTYPE_INLINE_THRESHOLD_BYTES = 40_000  # ~1000 lines of Python
+
+
+def _is_local_issue_key(issue_key: Optional[str]) -> bool:
+    return issue_key in _LOCAL_ISSUE_KEYS
 
 
 class EventMonitor:
@@ -407,7 +425,6 @@ class Executor:
             #   prototype (with or without spec) → /integrate-prototype
             #   spec only                        → /implement-workflow
             #   neither                          → /autonomous-implement
-            _is_local = lambda k: k in ("SPEC-LOCAL", "PROTO-LOCAL")
             if prototype_dir:
                 skill_name = "integrate-prototype"
                 prompt = (
@@ -419,7 +436,7 @@ class Executor:
                     prompt += f" --spec-file {spec_file}"
                 if workflow_name:
                     prompt += f" --workflow-name {workflow_name}"
-                if issue_key and not _is_local(issue_key):
+                if issue_key and not _is_local_issue_key(issue_key):
                     prompt += f" --jira-key {issue_key}"
             elif spec_file:
                 skill_name = "implement-workflow"
@@ -428,7 +445,7 @@ class Executor:
                     f" --context-file {context_file}"
                     f" --provenance-file {events_path}"
                 )
-                if issue_key and not _is_local(issue_key):
+                if issue_key and not _is_local_issue_key(issue_key):
                     prompt += f" --jira-key {issue_key}"
             else:
                 skill_name = "autonomous-implement"
@@ -648,10 +665,7 @@ class Executor:
                 spec_section = ""
 
         # Inject prototype source files if provided.
-        # Files under INLINE_THRESHOLD are injected in full; larger files get a
-        # structural summary (module docstring + function signatures) so the context
-        # stays manageable. The skill can Read the full file at its absolute path.
-        INLINE_THRESHOLD = 40_000  # bytes — ~1000 lines
+        # See PROTOTYPE_INLINE_THRESHOLD_BYTES for the full-vs-summary rule.
         prototype_section = ""
         if prototype_dir:
             proto_path = Path(prototype_dir)
@@ -664,15 +678,14 @@ class Executor:
                 "on their absolute path to access the full source during skill execution.\n"
             ]
             for f in sorted(py_files, key=lambda x: x.stat().st_size):
+                rel = f.relative_to(proto_path)
                 try:
                     src = f.read_text()
-                    rel = f.relative_to(proto_path)
                     size_kb = f.stat().st_size / 1024
-                    if f.stat().st_size <= INLINE_THRESHOLD:
+                    if f.stat().st_size <= PROTOTYPE_INLINE_THRESHOLD_BYTES:
                         parts.append(f"\n### `{rel}` — {size_kb:.0f} KB [FULL SOURCE]\n\n```python\n{src}\n```\n")
                     else:
                         # Extract: module docstring + all def/class signatures
-                        import ast, textwrap
                         summary_lines = []
                         try:
                             tree = ast.parse(src)
@@ -705,8 +718,14 @@ class Executor:
                             f"**Full path:** `{f.resolve()}`  — use `Read` tool to access full source.\n\n"
                             f"```python\n{summary}\n```\n"
                         )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Surface the failure both to the operator and to the skill,
+                    # so a missing file is never silently dropped from the context.
+                    print(f"   ⚠️  Could not read prototype file {f}: {exc}")
+                    parts.append(
+                        f"\n### `{rel}` — ⚠️ COULD NOT READ: {exc}\n"
+                        f"**Full path:** `{f.resolve()}`  — try the `Read` tool directly.\n"
+                    )
             parts.append("\n---\n")
             prototype_section = "\n".join(parts)
 
@@ -803,18 +822,17 @@ When implementing this issue:
         Returns:
             Execution result dictionary
         """
-        _is_local = lambda k: k in ("SPEC-LOCAL", "PROTO-LOCAL")
         if prototype_dir:
             prompt = f"/integrate-prototype --prototype-dir {prototype_dir} --context-file {context_file}"
             if spec_file:
                 prompt += f" --spec-file {spec_file}"
             if workflow_name:
                 prompt += f" --workflow-name {workflow_name}"
-            if issue_key and not _is_local(issue_key):
+            if issue_key and not _is_local_issue_key(issue_key):
                 prompt += f" --jira-key {issue_key}"
         elif spec_file:
             prompt = f"/implement-workflow --spec-file {spec_file} --context-file {context_file}"
-            if issue_key and not _is_local(issue_key):
+            if issue_key and not _is_local_issue_key(issue_key):
                 prompt += f" --jira-key {issue_key}"
         else:
             prompt = f"/autonomous-implement {issue_key} --context-file {context_file}"
