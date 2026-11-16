@@ -25,6 +25,7 @@ from .provenance import ProvenanceLogger, StepRecord, GateRecord
 from .watchdog import Watchdog
 from .checkpoint import Checkpoint
 from .circuit_breaker import CircuitBreaker
+from .knowledge import NO_REVIEW_RULES
 
 
 class EventMonitor:
@@ -602,6 +603,12 @@ class Executor:
 
 ---
 
+## Review Rules
+
+{knowledge_context.get('review_rules') or NO_REVIEW_RULES}
+
+---
+
 ## Foundations Standards
 
 {foundations_standards}
@@ -614,9 +621,10 @@ When implementing this issue:
 1. Follow the architecture patterns described above
 2. Use the coding patterns and conventions for this repository
 3. Ensure air-gapped compatibility (critical requirement)
-4. Meet Definition of Done checklist
-5. Achieve 80% test coverage minimum
-6. Run gitleaks to ensure no secrets
+4. Treat every Review Rule marked **I** (Important) for the units you touch as a requirement
+5. Meet Definition of Done checklist
+6. Achieve 80% test coverage minimum
+7. Run gitleaks to ensure no secrets
 """
 
         # Write into the repo dir so the subprocess claude session can read it

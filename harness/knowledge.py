@@ -9,6 +9,12 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import yaml
 
+# Shown in the knowledge context file when a repo's pack has no review-rules.md.
+NO_REVIEW_RULES = (
+    "No repository review rules in the knowledge pack. "
+    "Check the target repo for REVIEW.md and CLAUDE.md files."
+)
+
 
 class KnowledgeEngine:
     """Retrieves semantic knowledge for planning and implementation."""
@@ -37,6 +43,8 @@ class KnowledgeEngine:
             - patterns: Coding patterns and best practices
             - conventions: Code style and conventions
             - dependencies: Dependency information
+            - review_rules: The repo's own review rules (REVIEW.md + per-unit rules);
+              empty string when the repo has none
         """
         # Check cache
         if repo_name in self.cache:
@@ -50,14 +58,16 @@ class KnowledgeEngine:
                 'architecture': '',
                 'patterns': '',
                 'conventions': '',
-                'dependencies': ''
+                'dependencies': '',
+                'review_rules': ''
             }
 
         knowledge = {
             'architecture': self._load_markdown(repo_knowledge_dir / 'architecture.md'),
             'patterns': self._load_markdown(repo_knowledge_dir / 'patterns.md'),
             'conventions': self._load_markdown(repo_knowledge_dir / 'conventions.md'),
-            'dependencies': self._load_markdown(repo_knowledge_dir / 'dependencies.md')
+            'dependencies': self._load_markdown(repo_knowledge_dir / 'dependencies.md'),
+            'review_rules': self._load_markdown(repo_knowledge_dir / 'review-rules.md')
         }
 
         # Cache it

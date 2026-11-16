@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .checkpoint import Checkpoint
 from .circuit_breaker import CircuitBreaker
 from .executor import Executor
+from .knowledge import NO_REVIEW_RULES
 from .locks import LockError, RepoLock
 from .provenance import GateRecord, ProvenanceLogger, StepRecord
 from .watchdog import Watchdog
@@ -337,6 +338,9 @@ class Harness:
 
 ## Dependencies
 {knowledge.get('dependencies', 'No dependency information available.')}
+
+## Review Rules
+{knowledge.get('review_rules') or NO_REVIEW_RULES}
 
 ## Foundations Standards
 {foundations.get('standards', '')}
