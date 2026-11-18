@@ -88,6 +88,17 @@ repositories:
     description: Craft platform - governed runtime, bundles and Packs
     jira_component: Craft
 
+  - name: vcg-toolkit
+    display_name: VCG Toolkit
+    path: vcg-toolkit
+    github: EmergenceAI/vcg-toolkit
+    adapter: adapters.vcg_toolkit
+    primary_language: python
+    build_system: uv
+    test_framework: pytest
+    description: Verifiable code generation CLI (em-cli) and service (em-server)
+    jira_component: VCG
+
 # Repository dependency graph
 # Defines build and deployment order
 # Note: SDK and Connectors are modules within runtime, not separate repos
