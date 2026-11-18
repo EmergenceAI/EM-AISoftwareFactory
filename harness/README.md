@@ -57,6 +57,7 @@ Loads repository-specific knowledge:
 - Architecture documentation
 - Coding patterns
 - Conventions
+- Review rules (`review-rules.md`: the repo's REVIEW.md + per-unit rules; empty if none)
 - Foundations standards (air-gapped, DoD)
 
 ### Executor ([executor.py](executor.py))
@@ -218,6 +219,12 @@ Use repository pattern for data access:
 - Imports: absolute only
 - Type hints: strict, all public APIs
 - Docstrings: Google style
+
+---
+
+## Review Rules
+
+[The repo's review-rules.md, or a placeholder pointing at REVIEW.md / CLAUDE.md]
 
 ---
 

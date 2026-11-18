@@ -250,5 +250,71 @@ if [ -f "package.json" ]; then
     echo '```' >> "$OLDPWD/$KNOWLEDGE_DIR/dependencies.md"
 fi
 
+# ═══════════════════════════════════════════════════════
+# REVIEW RULES - REVIEW.md + the repo's own review skill
+# (contract.md Severity section, units/*.md), if present
+# ═══════════════════════════════════════════════════════
+
+# A review skill is any .claude/skills/*review*/ dir with a contract.md or units/.
+REVIEW_SKILL_DIRS=()
+for d in .claude/skills/*review*/; do
+    [ -d "$d" ] || continue
+    if [ -f "${d}contract.md" ] || [ -d "${d}units" ]; then
+        REVIEW_SKILL_DIRS+=("${d%/}")
+    fi
+done
+
+if [ -f "REVIEW.md" ] || [ ${#REVIEW_SKILL_DIRS[@]} -gt 0 ]; then
+    echo "  Extracting review rules..."
+    REVIEW_HASH=$(git log -1 --format=%H -- REVIEW.md .claude/skills/ 2>/dev/null || echo "unknown")
+    [ -n "$REVIEW_HASH" ] || REVIEW_HASH="unknown"
+    REVIEW_OUT="$OLDPWD/$KNOWLEDGE_DIR/review-rules.md"
+    REVIEW_TMP="$REVIEW_OUT.tmp"
+
+    cat > "$REVIEW_TMP" << EOF
+<!--
+AUTO-GENERATED from $REPO_NAME
+Last sync: $SYNC_DATE
+Source commit: $REVIEW_HASH
+DO NOT EDIT MANUALLY - Run ./sync_knowledge.sh to update
+-->
+
+# $REPO_NAME Review Rules
+
+The rules $REPO_NAME's own reviewers apply to every PR. A rule marked **I** (Important)
+is a requirement while implementing and a blocker in the Factory's code-review gate;
+**N** (Nit) is advisory.
+
+EOF
+
+    if [ -f "REVIEW.md" ]; then
+        { echo "## From REVIEW.md"; echo ""; cat REVIEW.md; echo ""; } >> "$REVIEW_TMP"
+    fi
+
+    for d in "${REVIEW_SKILL_DIRS[@]}"; do
+        seen_repo_wide=""
+        if [ -f "$d/contract.md" ] && grep -q "^## Severity" "$d/contract.md"; then
+            {
+                echo "## Severity (from $d/contract.md)"
+                echo ""
+                awk '/^## Severity/{f=1;next} f&&/^## /{exit} f' "$d/contract.md"
+                echo ""
+            } >> "$REVIEW_TMP"
+        fi
+        # repo-wide.md (rules for every PR) first, then the per-unit files
+        for f in "$d"/units/repo-wide.md "$d"/units/*.md; do
+            [ -f "$f" ] || continue
+            [ "$f" = "$d/units/repo-wide.md" ] && [ -n "${seen_repo_wide:-}" ] && continue
+            [ "$f" = "$d/units/repo-wide.md" ] && seen_repo_wide=1
+            { echo "## Unit rules (from $f)"; echo ""; cat "$f"; echo ""; } >> "$REVIEW_TMP"
+        done
+    done
+
+    mv "$REVIEW_TMP" "$REVIEW_OUT"
+elif [ -f "$OLDPWD/$KNOWLEDGE_DIR/review-rules.md" ]; then
+    # Keep an existing file (e.g. generated from a branch before REVIEW.md reached main).
+    echo "  No REVIEW.md or review skill found; keeping existing review-rules.md"
+fi
+
 cd "$OLDPWD"
 echo "✓ Knowledge pack created at $KNOWLEDGE_DIR"

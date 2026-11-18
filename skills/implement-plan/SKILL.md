@@ -32,6 +32,11 @@ When given a ticket reference (e.g., `@SEMI-123` or `SEMI-456`):
    - Understand existing architecture and patterns
    - Identify dependencies and integration points
    - Look for similar implementations to maintain consistency
+   - **Read the review rules**: the `## Review Rules` section of the harness knowledge context
+     file (`--context-file` / `.knowledge_context_*.md`, if present), plus the repo's `REVIEW.md`
+     and the `CLAUDE.md` files for the directories you will touch. Every rule marked **I**
+     (Important) for those units, and every `CLAUDE.md` rule, is a requirement — e.g. in Craft a
+     `.changeset` for a releasable package, per-row permission checks on list/get endpoints.
 
 5. **Think deeply** about how the pieces fit together:
    - What files need to be created or modified?
@@ -275,6 +280,9 @@ A good implementation plan should:
 ### Risks & Assumptions
 - ⚠️ [Risk or concern identified]
 - 💭 [Assumption being made]
+
+### Review Rules That Apply
+- [Important (I) rule from Review Rules / REVIEW.md / CLAUDE.md] → [how this plan meets it]
 
 ---
 
