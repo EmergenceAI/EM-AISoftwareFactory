@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Sync all knowledge packs from repositories
-# Only re-extracts if source docs have changed
+# Only re-extracts if source docs (README.md, docs/, REVIEW.md, .claude/skills/) have changed
 
 set -e
 
@@ -21,6 +21,7 @@ REPOS=(
     "sdk:$HOME/Documents/Development/em-sdk"
     "data-readiness:$HOME/Documents/Development/em-data-readiness"
     "semi:$HOME/Documents/Development/em-semi"
+    "craft:$HOME/Documents/Development/craft"
 )
 
 # Load sync state
@@ -43,9 +44,9 @@ for repo_entry in "${REPOS[@]}"; do
         continue
     fi
 
-    # Get current hash of docs
+    # Get current hash of docs (REVIEW.md and .claude/skills/ feed review-rules.md)
     cd "$repo_path"
-    CURRENT_HASH=$(git log -1 --format=%H -- README.md docs/ 2>/dev/null || echo "unknown")
+    CURRENT_HASH=$(git log -1 --format=%H -- README.md docs/ REVIEW.md .claude/skills/ 2>/dev/null || echo "unknown")
     cd "$SCRIPT_DIR"
 
     # Get last known hash

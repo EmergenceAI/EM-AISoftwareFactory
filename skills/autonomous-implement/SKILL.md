@@ -112,6 +112,10 @@ When invoked by the **workspace harness**, this skill receives a knowledge conte
 - Type hints: strict, all public APIs
 - Docstrings: Google style
 
+## Review Rules
+[The repo's own review rules: REVIEW.md, severity definitions, per-unit rules.
+ **I** = Important (must hold), **N** = Nit]
+
 ## Foundations Standards
 ### Air-Gapped Requirements (CRITICAL)
 - NO cloud-specific APIs (GCP, AWS, Azure)
@@ -133,10 +137,12 @@ If `--context-file` is provided:
 2. **Extract key information**:
    - Repository architecture patterns
    - Coding conventions specific to this repo
+   - Review rules the repo's reviewers will apply
    - Foundations requirements (air-gapped, DoD)
 3. **Apply throughout implementation**:
    - Use architecture patterns in plan
    - Follow conventions in code
+   - Meet every Important review rule (see "Review Rules Are Requirements" below)
    - Validate against Foundations requirements
 4. **Reference in commits/PRs**:
    - Mention compliance with standards
@@ -150,6 +156,25 @@ If `--context-file` is provided:
 # Skill reads context first, then proceeds with normal flow
 # but uses repo-specific patterns and enforces standards
 ```
+
+### Review Rules Are Requirements
+
+Before planning or writing code — with or without a context file — read the context file's
+`## Review Rules` section and the target repo's `REVIEW.md` and `CLAUDE.md` files (root, plus
+those in each directory the change touches). Work out which units the change touches (for a
+multi-unit repo, the first directory of each changed path; `repo-wide` always applies).
+
+Treat every rule marked **I** (Important) for those units, and every `CLAUDE.md` rule, as a
+requirement of the ticket: put it in the plan and meet it in the code. The code-review gate
+blocks on any of them. For Craft, for example:
+
+- a change to a releasable package adds a `.changeset`, or it never ships
+- list/get endpoints check permissions per row (`GovernancePermissions`), not just at the route
+- a retried write re-applies its grants (e.g. OpenFGA `set_parent`), so a retry is not half-granted
+- the caller can read back what it just wrote
+- a PR carrying migrations stays small and self-contained
+
+**N** (Nit) rules are guidance, not requirements.
 
 ---
 
@@ -169,6 +194,7 @@ if (contextFile && fs.existsSync(contextFile)) {
   const architecture = extractSection(context, 'Architecture')
   const patterns = extractSection(context, 'Coding Patterns')
   const conventions = extractSection(context, 'Conventions')
+  const reviewRules = extractSection(context, 'Review Rules')
   const foundations = extractSection(context, 'Foundations Standards')
   
   // These will be referenced throughout implementation
@@ -349,6 +375,9 @@ ${architecture}
 Adhere to these conventions:
 ${conventions}
 
+Meet every Important (I) review rule for the units this change touches:
+${reviewRules}
+
 CRITICAL: Ensure air-gapped compatibility per Foundations standards:
 ${foundations}"
 ```
@@ -356,6 +385,7 @@ ${foundations}"
 The plan should:
 - Follow repository architecture patterns
 - Use coding conventions specified in context
+- List the Important review rules that apply and how each is met
 - Ensure Foundations requirements are met (air-gapped, test coverage, etc.)
 
 Use existing `/create-plan` skill:
@@ -432,6 +462,7 @@ Use existing `/implement-plan` skill:
 Executes implementation:
 - Creates/modifies files per spec
 - Follows coding patterns from research
+- Meets every Important review rule the plan lists (e.g. adds the `.changeset`)
 - Writes initial tests
 - Updates documentation
 
@@ -450,7 +481,7 @@ The four gates (in order):
 1. **Linter & static analysis** — auto-fix pass first, then manual edits for remaining errors
 2. **Existing tests** — full suite excluding `tests/evals/`; no regressions allowed
 3. **New evals** — acceptance-criteria tests in `tests/evals/${issueKey}/`
-4. **Code review blockers** — parallel review agents; only blockers are fixed (nits ignored)
+4. **Code review blockers** — `/run-code-review`: the repo's own reviewer when it ships one (e.g. Craft's `craft-review` lenses), else generic agents; a violated Important review rule is a blocker; only blockers are fixed (nits ignored)
 
 > **Provenance:** After each gate result, append:
 > `{"event": "gate", "gate": "linter", "attempt": 1, "passed": true, "outputs": <gate JSON result>}`

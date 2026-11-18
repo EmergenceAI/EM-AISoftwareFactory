@@ -209,15 +209,17 @@ const summary = {
 
 ### Gate 4: Code Review Blockers Check
 
-**What to run:** The `/code-review` skill scoped to the current branch diff. Extract only **Blockers** — suggestions and nits are ignored in the loop.
+**What to run:** The `/run-code-review` skill on the current branch diff. It runs the target repo's own reviewer when the repo ships one (e.g. Craft's `craft-review` lenses), otherwise the generic agents with the repo's Review Rules attached — so a violated Important (`I`) repo rule is a blocker. Extract only **blockers** — suggestions and nits are ignored in the loop.
 
 ```bash
-/code-review
+/run-code-review --output .harness-results/code-review.json
 ```
 
-Read the review output and filter for the `### Blockers` section. If the verdict is `Approve` or the Blockers section is empty, the gate passes.
+(It picks up the harness context file `.knowledge_context_*.md` at the repo root for the Review Rules.)
 
-**Gate passes when:** Verdict is `Approve` (no blockers), OR the Blockers section lists zero items.
+Read `blockers` from the JSON result. If `passed` is `true` (no blockers), the gate passes.
+
+**Gate passes when:** `passed` is `true` — `blockers` is empty.
 
 **Gate fails when:** One or more blockers are listed (bugs, security issues, linter errors the code review agent found that Gate 1 missed, failing tests the review agent flagged).
 

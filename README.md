@@ -316,6 +316,7 @@ python -m harness server
 | **`/eval-generator`** | Generate tests from acceptance criteria | 100% |
 | **`/create-pr`** | Create pull request | 95% (1 checkpoint) |
 | **`/code-review`** | Automated code review | 95% (1 checkpoint) |
+| **`/run-code-review`** | Harness code-review gate (JSON blockers); runs the repo's own reviewer if it has one | 100% |
 | **`/commit`** | Smart commit organization | 100% |
 
 ### Research & Planning
@@ -343,7 +344,8 @@ knowledge/
 │   │   ├── architecture.md      ← em-semi architecture
 │   │   ├── patterns.md          ← Coding patterns (context managers, etc.)
 │   │   ├── conventions.md       ← Style guide (imports, type hints)
-│   │   └── dependencies.md      ← Package management approach
+│   │   ├── dependencies.md      ← Package management approach
+│   │   └── review-rules.md      ← Repo's review rules (only if it has REVIEW.md / a review skill)
 │   ├── talk2data/
 │   │   └── ...                  ← talk2data knowledge
 │   └── runtime/
@@ -364,6 +366,21 @@ knowledge/
 
 # Only re-extracts if repository changed (git diff check)
 ```
+
+### Review Rules
+
+If a repository has a `REVIEW.md` and/or a review skill (`.claude/skills/*review*/` with
+`contract.md` and `units/*.md`, like Craft's `craft-review`), extraction also writes
+`review-rules.md`: REVIEW.md, the contract's Severity section and every unit rule file. The
+harness injects it into the context file as `## Review Rules`, and it is used twice:
+
+- **While coding** — `/autonomous-implement` and `/implement-plan` treat every rule marked **I**
+  (Important) for the touched units as a requirement (e.g. Craft: add a `.changeset`, per-row
+  permission checks on list/get).
+- **Before done** — the code-review gate (`/verify-and-fix` Gate 4 → `/run-code-review`) runs the
+  repo's own `review-*` lens agents under its contract when the repo ships them, mapping
+  `important` → blockers and `nit`/`pre_existing` → suggestions; otherwise the generic reviewers get
+  the Review Rules and a violated **I** rule is a blocker.
 
 ### Pointing to Specific Knowledge
 
@@ -387,6 +404,9 @@ The context file contains:
 
 ## Conventions
 [Import style, naming, docstrings]
+
+## Review Rules
+[REVIEW.md + per-unit rules, when the repo has them]
 
 ## Foundations Standards
 ### Air-Gapped Requirements (CRITICAL)

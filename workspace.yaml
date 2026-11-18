@@ -77,6 +77,17 @@ repositories:
     description: Semiconductor fabrication platform with AI-assisted data analysis
     jira_component: Semi
 
+  - name: craft
+    display_name: Craft
+    path: craft
+    github: EmergenceAI/craft
+    adapter: adapters.craft
+    primary_language: python
+    build_system: uv+pnpm
+    test_framework: pytest
+    description: Craft platform - governed runtime, bundles and Packs
+    jira_component: Craft
+
   - name: vcg-toolkit
     display_name: VCG Toolkit
     path: vcg-toolkit
@@ -122,6 +133,7 @@ jira:
     SDK: runtime              # SDK components are in em-runtime repo
     "Data Readiness": data-readiness
     Semi: semi
+    Craft: craft
 
 # Confluence integration
 confluence:
