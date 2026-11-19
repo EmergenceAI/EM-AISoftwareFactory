@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Software Factory — Advisor Briefing</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --purple: #bc8cff;
+      --red: #f85149;
+      --tag-bg: #1f2937;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .page { max-width: 1080px; margin: 0 auto; padding: 48px 32px; }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 40px;
+      margin-bottom: 52px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    header p.subtitle {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 680px;
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 24px;
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+    .dot.yellow { background: var(--yellow); }
+
+    /* ── Sections ── */
+    section { margin-bottom: 60px; }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    /* ── Vision callout ── */
+    .vision-box {
+      background: #1c2230;
+      border: 1px solid #2d4a7a;
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .vision-box .quote {
+      font-size: 1.1rem;
+      color: var(--text);
+      font-style: italic;
+      line-height: 1.7;
+    }
+
+    /* ── Stat cards ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 22px;
+    }
+    .stat-num {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── Columns ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Component card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 22px;
+    }
+    .card h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .card p {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--tag-bg);
+      color: var(--accent);
+      margin: 4px 3px 0 0;
+    }
+    .tag.green { color: var(--green); }
+    .tag.yellow { color: var(--yellow); }
+
+    /* ── Pipeline diagram ── */
+    .pipeline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0;
+      margin: 20px 0;
+    }
+    .pipe-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-size: 13px;
+      white-space: nowrap;
+      position: relative;
+    }
+    .pipe-step.highlight {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .pipe-arrow {
+      font-size: 18px;
+      color: var(--border);
+      padding: 0 6px;
+    }
+
+    /* ── Skills list ── */
+    .skill-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .skill-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .skill-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .badge-auto { background: #1b3a2f; color: var(--green); }
+    .badge-guided { background: #2a2010; color: var(--yellow); }
+    .badge-util { background: #1e1c33; color: var(--purple); }
+    .skill-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .skill-desc {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ── Progress tracker ── */
+    .progress-list { display: flex; flex-direction: column; gap: 10px; }
+    .progress-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+    }
+    .check {
+      font-size: 18px;
+      flex-shrink: 0;
+      line-height: 1.3;
+    }
+    .progress-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .progress-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Remaining section ── */
+    .remaining-box {
+      background: #1f1a2e;
+      border: 1px solid #5a3d9a;
+      border-left: 4px solid var(--purple);
+      border-radius: 8px;
+      padding: 28px 32px;
+    }
+    .remaining-box h3 {
+      color: var(--purple);
+      margin-bottom: 16px;
+    }
+    .remaining-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .remaining-list li {
+      display: flex;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .remaining-list li::before {
+      content: "→";
+      color: var(--purple);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .remaining-list .sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ── Architecture table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    thead th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface); }
+    code {
+      background: #21262d;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 12px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      color: var(--purple);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+      margin-top: 60px;
+      font-size: 12.5px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="eyebrow">Advisor Briefing · Emergence AI</div>
+    <h1>AI Software Factory</h1>
+    <p class="subtitle">
+      An autonomous engineering operating system that converts Jira issues into tested,
+      reviewed pull requests across multiple repositories — with a single command.
+    </p>
+    <div class="meta-row">
+      <div class="meta-item"><span class="dot"></span>Core skills: built &amp; tested</div>
+      <div class="meta-item"><span class="dot"></span>Orchestrator: implemented</div>
+      <div class="meta-item"><span class="dot yellow"></span>Cloud deployment: remaining</div>
+    </div>
+  </header>
+
+  <!-- ── Vision ── -->
+  <section>
+    <h2>The Vision</h2>
+    <div class="vision-box">
+      <div class="quote">
+        "Encode the entire software delivery lifecycle as composable Claude Code skills,
+        then orchestrate them autonomously across repositories — so a 4-person team
+        can ship at the pace of 40, with 80 % of actions requiring zero human input."
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num">80/20</div>
+        <div class="stat-label">Autonomy model — 80 % auto, 20 % strategic checkpoints</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">~85 %</div>
+        <div class="stat-label">Average autonomy across all skills</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">40 → 3</div>
+        <div class="stat-label">Manual prompts replaced by strategic checkpoints per issue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">8×</div>
+        <div class="stat-label">Sprint throughput vs sequential delivery (8 parallel agents)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">24</div>
+        <div class="stat-label">Composable skills covering the full SDLC</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">5 repos</div>
+        <div class="stat-label">Actively wired: runtime, runtime-ui, talk2data, data-readiness, semi</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── End-to-end pipeline ── -->
+  <section>
+    <h2>End-to-End Autonomous Pipeline</h2>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px;">
+      A single command (<code>/autonomous-implement ABI-123</code>) runs the full SDLC without human
+      intervention until the plan-approval and PR-review checkpoints.
+    </p>
+    <div class="pipeline">
+      <div class="pipe-step highlight">Jira Issue</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Fetch &amp; branch</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Research codebase</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Create plan ✋</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Generate evals</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Implement</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Run evals (3× retry)</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">Create PR ✋</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step">9-agent code review</div>
+      <div class="pipe-arrow">›</div>
+      <div class="pipe-step highlight">Update Jira</div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:6px;">✋ = strategic human checkpoint &nbsp;·&nbsp; Everything else is autonomous &nbsp;·&nbsp; Typical time: 3–8 min / issue</p>
+  </section>
+
+  <!-- ── What's built ── -->
+  <section>
+    <h2>What Has Been Built</h2>
+
+    <h3>Autonomous end-to-end skills</h3>
+    <div class="skill-grid" style="margin-bottom:24px;">
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/autonomous-implement</div>
+          <div class="skill-desc">Full SDLC for a single Jira issue. Accepts <code>--context-file</code> for orchestrator-injected knowledge.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/autonomous-sprint</div>
+          <div class="skill-desc">Parallel multi-issue sprint. Up to 8 concurrent agents in isolated git worktrees — 8× throughput.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Core development skills</h3>
+    <div class="skill-grid" style="margin-bottom:24px;">
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/create-plan</div>
+          <div class="skill-desc">Interactive planning from a Jira ticket. Parallel research agents, section-by-section approval, saved to <code>specs/</code>.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/implement-plan</div>
+          <div class="skill-desc">Phased implementation of an approved plan. Human verification pause between phases.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/eval-generator</div>
+          <div class="skill-desc">Converts Jira acceptance criteria into pytest suites: functional, performance, quality, edge-case.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/code-review</div>
+          <div class="skill-desc">9 parallel specialist agents (security, perf, test quality…) synthesised by a senior reviewer agent.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/create-pr</div>
+          <div class="skill-desc">GitHub PR with size check (flags if &gt;300 lines / 10 files), labels, comprehensive description.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/commit</div>
+          <div class="skill-desc">Groups changes into logical atomic commits with conventional messages. Never uses <code>git add -A</code>.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Research, quality &amp; Jira skills</h3>
+    <div class="skill-grid" style="margin-bottom:24px;">
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/research-codebase</div>
+          <div class="skill-desc">Parallel sub-agents document architecture, patterns, dependencies. Output saved to <code>specs/research/</code>.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/jira-to-branches</div>
+          <div class="skill-desc">JQL query → standardised branches per issue type. Updates Jira with branch links.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/jira-update</div>
+          <div class="skill-desc">Posts PR links, eval results, implementation notes, and status transitions back to Jira.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/validate-plan</div>
+          <div class="skill-desc">Checks implementation against plan, ADRs, and architecture docs. Produces red/yellow/green report.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/create-e2e-testplan</div>
+          <div class="skill-desc">Parallel frontend, backend, integration agents → structured test plan in <code>specs/testing/</code>.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/update-e2e-testplan</div>
+          <div class="skill-desc">Diffs two releases, marks [NEW]/[UPDATED]/[DEPRECATED] tests accordingly.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Issue management &amp; utility skills</h3>
+    <div class="skill-grid">
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/create-bug</div>
+          <div class="skill-desc">Interactive Jira bug creation with regression analysis from recent commits.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/create-bug-from-video</div>
+          <div class="skill-desc">Analyses screen recordings (ffmpeg + Whisper), identifies bug, files in Jira with video attached.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/create-epic</div>
+          <div class="skill-desc">Creates Jira epics from a standard template or batch CSV/Excel input.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/describe-pr</div>
+          <div class="skill-desc">Generates and updates GitHub PR descriptions by fetching diff + related docs.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/split-pr</div>
+          <div class="skill-desc">Splits large feature branches into focused PRs with dependency documentation.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-guided">GUIDED</span>
+        <div>
+          <div class="skill-name">/generate-migration</div>
+          <div class="skill-desc">Database migration files (Alembic, Django, Knex, Prisma…). Previews SQL before applying.</div>
+        </div>
+      </div>
+      <div class="skill-row">
+        <span class="skill-badge badge-auto">AUTO</span>
+        <div>
+          <div class="skill-name">/dogfood</div>
+          <div class="skill-desc">Browser-driven QA. Reproduces bugs with video evidence, files 5–10 Jira issues per session.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Orchestrator ── -->
+  <section>
+    <h2>Orchestrator Layer</h2>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:20px;">
+      A thin Python workspace layer (~500 lines) that injects repository knowledge and routes issues to the
+      correct repository before handing off to the Claude Code skills. It does not reimplement the SDLC.
+    </p>
+    <div class="two-col" style="margin-bottom:20px;">
+      <div class="card">
+        <h4>Router</h4>
+        <p>Three-strategy routing: Jira component field → keyword analysis of description → <code>repo:</code> label prefix. Falls back to <code>runtime</code>.</p>
+      </div>
+      <div class="card">
+        <h4>KnowledgeEngine</h4>
+        <p>Loads per-repo knowledge (architecture, patterns, conventions, dependencies) and Foundations standards into a single context file injected as <code>--context-file</code>.</p>
+      </div>
+      <div class="card">
+        <h4>Executor</h4>
+        <p>Creates a temp knowledge context file, invokes <code>/autonomous-implement</code> via subprocess or Skill tool. Handles single-repo and multi-repo flows.</p>
+      </div>
+      <div class="card">
+        <h4>Planner</h4>
+        <p>Produces a <code>TaskGraph</code> with per-repo tasks and inter-repo dependencies. Step sequences vary by issue type (Story / Bug / Task).</p>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:0;">
+      <h4>CLI usage</h4>
+      <table>
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>python -m orchestrator implement ABI-123</code></td><td>Auto-route and implement one issue</td></tr>
+          <tr><td><code>python -m orchestrator implement ABI-123 --repo runtime</code></td><td>Override routing to a specific repo</td></tr>
+          <tr><td><code>python -m orchestrator multi-repo SDK-456 --repos sdk,runtime,runtime-ui</code></td><td>Cross-repo implementation with dependency ordering</td></tr>
+          <tr><td><code>python -m orchestrator sprint --jql "filter=17150"</code></td><td>Full parallel sprint from a Jira filter</td></tr>
+          <tr><td><code>python -m orchestrator knowledge --repo runtime --list</code></td><td>Inspect loaded knowledge for a repo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Knowledge system ── -->
+  <section>
+    <h2>Knowledge System</h2>
+    <div class="two-col">
+      <div>
+        <h3>Repository knowledge</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px;">
+          Each of the 5 active repositories has a <code>knowledge/repositories/&lt;name&gt;/</code>
+          directory containing four Markdown files extracted from the repo's own docs:
+        </p>
+        <div class="card">
+          <table>
+            <tbody>
+              <tr><td><code>architecture.md</code></td><td style="color:var(--muted)">Component map, data flows, ADR index</td></tr>
+              <tr><td><code>patterns.md</code></td><td style="color:var(--muted)">Coding patterns and idioms</td></tr>
+              <tr><td><code>conventions.md</code></td><td style="color:var(--muted)">Naming, structure, style rules</td></tr>
+              <tr><td><code>dependencies.md</code></td><td style="color:var(--muted)">Key libs, versions, constraints</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3>Foundations standards</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px;">
+          Platform-wide standards extracted from <code>em-foundations</code> and applied to every issue:
+        </p>
+        <div class="card" style="margin-bottom:14px;">
+          <h4 style="font-size:13px;margin-bottom:6px;">Definition of Done (9 items)</h4>
+          <p>Functionality · ≥80 % test coverage · Code review · Pacto contracts · Configuration · Observability · Documentation · Security · Deploy readiness</p>
+        </div>
+        <div class="card">
+          <h4 style="font-size:13px;margin-bottom:6px;">Hard constraints</h4>
+          <p>Air-gapped (no cloud APIs in app code) · Vault for secrets · cosign image signing + SBOM · ArgoCD deploy pipeline · British English docs</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Repository wiring ── -->
+  <section>
+    <h2>Repository Wiring</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Repository</th>
+          <th>Jira Component</th>
+          <th>Stack</th>
+          <th>Adapter</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>em-runtime</td>
+          <td>Runtime · Connectors · SDK</td>
+          <td>Python / Poetry / pytest</td>
+          <td><code>runtime.py</code> <span class="tag green">done</span></td>
+        </tr>
+        <tr>
+          <td>em-runtime-ui</td>
+          <td>UI</td>
+          <td>TypeScript / pnpm / vitest</td>
+          <td><span class="tag yellow">in progress</span></td>
+        </tr>
+        <tr>
+          <td>em-talk2data</td>
+          <td>Talk2Data</td>
+          <td>Python / Poetry / pytest</td>
+          <td><span class="tag yellow">in progress</span></td>
+        </tr>
+        <tr>
+          <td>em-data-readiness</td>
+          <td>Data Readiness</td>
+          <td>Python / Poetry / pytest</td>
+          <td><span class="tag yellow">in progress</span></td>
+        </tr>
+        <tr>
+          <td>em-semi</td>
+          <td>Semi</td>
+          <td>Python / Docker / pytest</td>
+          <td><code>semi.py</code> <span class="tag green">done</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── What's done ── -->
+  <section>
+    <h2>Completion Tracker</h2>
+    <div class="progress-list">
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">24 SDLC skills authored and validated</div>
+          <div class="progress-sub">Full coverage: issue intake, planning, evals, implementation, review, PR, Jira update, QA browser testing, epic/bug creation, migration generation.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">80/20 autonomous-mode settings</div>
+          <div class="progress-sub">Auto-approves safe read/write/git/docker operations; blocks destructive commands; defines 3 strategic human checkpoints per issue.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">MCP Atlassian integration</div>
+          <div class="progress-sub">Jira issue fetch, search (JQL), comment, create, transition, and Confluence page fetch all wired via <code>mcp-atlassian</code> server.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Orchestrator Python layer</div>
+          <div class="progress-sub">Router, KnowledgeEngine, Executor, Planner, CLI, knowledge sync scripts — all implemented.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Knowledge corpus for all 5 repos + Foundations</div>
+          <div class="progress-sub">Architecture, patterns, conventions, dependencies extracted and in <code>knowledge/</code>. Auto-sync script watches git hash of source docs.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Workflow engine for parallel sprints</div>
+          <div class="progress-sub"><code>autonomous-sprint.js</code> — three-phase Setup / Audit / Implement with isolated git worktrees per agent. Up to 8 concurrent.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Prompt templates for specialist agents</div>
+          <div class="progress-sub">Architect, Planner, Backend, UI, Evaluator, Reviewer — parameterised Markdown templates used by the orchestrator Planner.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Repository adapters (runtime + semi)</div>
+          <div class="progress-sub">Abstract <code>RepositoryAdapter</code> base with concrete implementations covering build, test, lint, format, branch, architecture, patterns.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Packaged as a Claude Code plugin</div>
+          <div class="progress-sub">Installable via <code>/plugin install em-software-factory@em-plugins</code>. Plugin manifest declares all skills, hooks, and MCP config.</div>
+        </div>
+      </div>
+      <div class="progress-item">
+        <span class="check">✅</span>
+        <div>
+          <div class="progress-title">Security &amp; secret controls</div>
+          <div class="progress-sub"><code>gitleaks</code> scan script, settings block env file writes, MCP env vars loaded from shell (never committed).</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── What remains ── -->
+  <section>
+    <h2>What Remains: Cloud Deployment</h2>
+    <div class="remaining-box">
+      <h3>The one open chapter — running agents and the harness in cloud</h3>
+      <p style="color:var(--muted);font-size:13.5px;margin-bottom:20px;">
+        Everything described above runs locally inside Claude Code (desktop or CLI).
+        The next step is lifting the harness and agents into a persistent cloud environment so the factory
+        can run unattended, scale horizontally, and integrate with the team's CI/CD pipeline.
+      </p>
+      <ul class="remaining-list">
+        <li>
+          <div>
+            <div><strong>Managed Agent hosting</strong> — deploy skills as server-hosted Claude Managed Agents so they run without a developer's laptop</div>
+            <div class="sub">Anthropic's Managed Agents API provides a hosted sandbox with persistent context and tool access</div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <div><strong>Orchestrator service</strong> — wrap the Python orchestrator as a long-running service (container / Lambda / Cloud Run)</div>
+            <div class="sub">Needs: Jira webhook trigger → route → invoke skill → report result, all without a human in the loop</div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <div><strong>Secure credential delivery</strong> — Jira/GitHub tokens, MCP config, and repo SSH keys in cloud-native secret store (Vault / AWS Secrets Manager)</div>
+            <div class="sub">Currently loaded from developer shell env vars; needs K8s-style injection for headless runs</div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <div><strong>Repo access &amp; worktree storage</strong> — agents need authenticated git clone and writable ephemeral workspace per task</div>
+            <div class="sub">Options: ephemeral containers per agent, shared PVC with worktree isolation, or GitHub Codespaces-style environments</div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <div><strong>Observability &amp; reporting</strong> — structured logs per sprint, per agent, per issue; reporter module surfaces success/partial/failed counts</div>
+            <div class="sub">Reporter module exists in orchestrator but needs a sink (Datadog, Grafana, or Jira comment)</div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <div><strong>Air-gapped packaging</strong> — for semiconductor customers who cannot call external APIs</div>
+            <div class="sub">The Foundations ADRs already mandate air-gapped operation; the factory itself must be deployable without internet access</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── Tech stack summary ── -->
+  <section>
+    <h2>Technology Stack</h2>
+    <div class="two-col">
+      <div class="card">
+        <h4>AI / Orchestration layer</h4>
+        <span class="tag">Claude Code v2.1.81+</span>
+        <span class="tag">Claude Sonnet (skills)</span>
+        <span class="tag">Anthropic Workflow engine</span>
+        <span class="tag">MCP (Model Context Protocol)</span>
+        <span class="tag">mcp-atlassian</span>
+        <span class="tag">agent-browser</span>
+      </div>
+      <div class="card">
+        <h4>Orchestrator &amp; tooling</h4>
+        <span class="tag">Python 3.8+</span>
+        <span class="tag">argparse CLI</span>
+        <span class="tag">subprocess + Skill tool</span>
+        <span class="tag">ffmpeg</span>
+        <span class="tag">Whisper (STT)</span>
+        <span class="tag">gitleaks</span>
+      </div>
+      <div class="card">
+        <h4>Integrations</h4>
+        <span class="tag">Jira (MCP)</span>
+        <span class="tag">Confluence (MCP)</span>
+        <span class="tag">GitHub (gh CLI)</span>
+        <span class="tag">ArgoCD</span>
+        <span class="tag">Dagger</span>
+        <span class="tag">Vault (secrets)</span>
+      </div>
+      <div class="card">
+        <h4>Repo quality toolchain</h4>
+        <span class="tag">pytest + 80 % coverage</span>
+        <span class="tag">ruff + black + mypy</span>
+        <span class="tag">eslint + prettier + tsc</span>
+        <span class="tag">Pacto (contract tests)</span>
+        <span class="tag">cosign + SBOM</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Emergence AI · July 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
