@@ -126,6 +126,17 @@ mkdir -p "$vendor_tests"
 emit <<<"$sources"
 emit <<<"$tests"
 
+# Single modules of a package are vendored without the package's own `__init__.py` (it may import
+# platform code, e.g. common_semi/data/__init__.py imports Iceberg), so each vendored directory
+# without one gets a marker and is a regular package wherever the snippet loader puts it.
+find "$vendor" -type d ! -name __pycache__ -exec sh -c '[ -e "$1/__init__.py" ] || : >"$1/__init__.py"' _ {} \;
+
+# craft's snippet store refuses an empty module ("a snippet must carry source") and registers one
+# snippet per checksum per project, so two identical markers leave the second module with no snippet.
+# Every `.py` under src/ is delivered as a snippet, so each empty module (generated here or empty
+# upstream) carries one comment line naming its own path.
+find "$vendor" -name '*.py' -empty -exec sh -c 'printf "# Package marker: %s (empty in em-semi).\n" "${1#"$2"/}" >"$1"' _ {} "$vendor" \;
+
 # A patch that stops applying is a HARD failure: em-semi moved under it, and the conflict needs
 # resolving by hand into a regenerated patch.
 if compgen -G "$patches/*.patch" >/dev/null; then

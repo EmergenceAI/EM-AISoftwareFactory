@@ -10,8 +10,8 @@ working summary the skill follows.
 |---|---|---|
 | Orchestration | Prefect `@semi_flow` (in `flow.py` or a `workflows*/` module), tasks in one worker process | Workflow graph in `bundle.yaml`; each node is a job pod or WASM component |
 | Steps | `@semi_task` functions sharing memory | Components exchanging declared inputs/outputs |
-| Platform services | Direct imports: `get_database()`, GCS storage, LLM service, Iceberg data views, inbox, `FlowContext` | Declared capabilities on `JobContext` (`resource_read`, `file_emit`, `data_query`, `llm_complete`, `ledger_*`, …); everything else blocked |
-| Data access | Open network | Inputs prefetched (`prefetch:`), then network locked |
+| Platform services | Direct imports: `get_database()`, GCS storage, LLM service, Iceberg data views, inbox, `FlowContext` | Declared capabilities on `JobContext` (`resource_read`, `file_emit`, `data_query`, `data_export`, `db_query`, `db_write`, `llm_complete`, `ledger_*`, …); everything else blocked |
+| Data access | Open network | Datasets through `data_query` / `data_export` under the component's `dataScope`; the bundle database through `db_*` under `bundleDb`; inputs prefetched (`prefetch:`); network locked |
 | Results | DB rows + inbox message | Node output, rendered by a bundle app (`apps:` + `runSource`) |
 
 ## The three jobs
@@ -64,10 +64,36 @@ Classify every module in the import closure (this is the step-1 inventory):
 
 ## Write boundary
 
-The skill writes only inside its target bundle and shared Pack-level stand-ins. It does not change
-craft's planes, SDKs or runner images (`compute-plane-python/python-runner/requirements.txt`,
-`Dockerfile.toolchain`). A port that needs one of those records it under *Outside write boundary*
-in the gap report and finishes `partial` where it blocks.
+The skill writes inside its target bundle and shared Pack-level modules, plus three one-line
+registrations a bundle cannot exist without:
+- its `app/` in the root `pnpm-workspace.yaml`, and the matching `pnpm-lock.yaml` update
+  (`pnpm install --lockfile-only`);
+- its `bundle.yaml` in the list in `control-plane/apps/ctl/test/bundles/bundle-yaml-schema.test.ts`.
+
+It does not change craft's planes, SDKs, CLI or runner images
+(`compute-plane-python/python-runner/requirements.txt`, `Dockerfile.toolchain`). A port that needs
+one of those records it under *Outside write boundary* in the gap report and finishes `partial`
+where it blocks.
+
+## Two data sources: the source layer
+
+Every redirected data interface (data views, lot datasets, catalogs, DB repositories, knowledge)
+reads through one module, `<pkg>/source.py`, never straight from fixtures or `JobContext`:
+
+- `CraftSource(job)` is what the node uses: `data_query` / `data_export` over the granted datasets,
+  `db_query` over the granted bundle database tables. It reads each whole table once per run.
+- `FixtureSource` reads the committed fixture, so vendored tests, goldens and evals run offline. It
+  is the default when no source is set.
+- The node selects it: `with use_flow_context(ctx), use_source(CraftSource(job)):`. Anything built
+  before that line (the context, its repositories) must read the source **lazily, on first use**,
+  or it silently reads the fixture. CPA's products repository did, and only the live run caught it.
+- The test channel (`tests/_<slug>_fakes.py`) answers `data.query` and `db.query` from the fixture,
+  so the node tests run `CraftSource`'s real SQL path, not `FixtureSource`.
+- The run's org is `job.invocation.org_id`. The fixture's rows carry the fixture org, and the test
+  invocation uses that org.
+
+An interface with a craft path is an **adapter**, not a gap. Only a part with no craft path (a
+write with no table, an unpinnable snapshot, a capability that does not exist) is a stand-in.
 
 ## Missing craft capabilities: stand-ins
 
@@ -84,7 +110,7 @@ When a platform call has no craft equivalent yet:
 
 When the real capability lands, the interface is switched over without touching workflow code.
 
-## Parity: two layers
+## Parity: static tests and evals
 
 1. **Static tests**, analog-trim style:
    - em-semi's own tests, vendored, run against the vendored code (the oracle). A failing vendored
@@ -106,3 +132,15 @@ When the real capability lands, the interface is switched over without touching 
 **LLM steps** call the real model through craft's `llm.complete` (`JobContext.llm_complete`). There
 is no record/replay. LLM output is never compared exactly. Static tests check its structure, and
 evals judge its quality and correctness.
+
+## Parity: the live run
+
+Static tests over the fixture prove the analysis; they cannot prove the craft path. Two things only
+a live run shows:
+- **Delivery:** snippet admission against the deployment's capability ceiling, empty or duplicate
+  modules, stale publishes.
+- **Data:** the column types and orgs real data brings.
+
+So Step 9 ends with one run on the local stack over em-semi's pack, and the report it produces is
+compared with the golden for the same inputs (sections, charts, attachments, the summary text). See
+SKILL.md *Step 9*.

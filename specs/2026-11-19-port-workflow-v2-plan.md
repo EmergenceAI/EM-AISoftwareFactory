@@ -48,6 +48,11 @@ Rows 1, 3 and 6 stop being blockers once #1495 merges.
 
 ## 2. Skill changes (EM-AISoftwareFactory `skills/port-workflow/`)
 
+**Status (2026-11-20):** done after the CPA port ran live (craft `a21b76f888`): S1, S2, S3, S4, S5,
+S7 and S8. Also added: the package-marker step in the vendor template, the `data.query` cast rules,
+the per-run artefact name, and a table of live-run failures and their causes. Not done: S6
+(workflow metadata and node diagram).
+
 Each change says which table rows it uses and which file it touches.
 
 | # | Change | Rows | Files |
