@@ -254,7 +254,17 @@ Plotly and attachment previews.
 - Rename the package to `<bundle>-app` and set the page title.
 - Point `src/App.test.tsx`'s golden import at this bundle's own golden node output.
 - Add `apps: [{name, title, entry: index.html, runSource: {nodeId: <report node>}}]` to
-  `bundle.yaml`.
+  `bundle.yaml`. The app's `name` must be the report node's **component** name (analog-trim:
+  app and component are both `trim-report`). The run page finds an app by matching a node's
+  component name; under any other name the run has no report view.
+- **PDF artifact.** Add the optional `report-to-pdf` dependency and a `pdf` node bound to the
+  report node (`component: report-to-pdf/report-to-pdf`, `bind: {report: {from: node, node:
+  <report node>}}`, `timeoutMs: 600000`), as analog-trim does. It publishes the report as a
+  `report` artefact, em-semi's PDF export, and it is what makes the report show under Artifacts.
+  Register `report-to-pdf` before the bundle.
+- `presentation.nodes.<id>.category` is one of `trigger`, `data`, `compute`, `done`. The cell
+  refuses any other value at install (the bundle never appears), and the control plane's parse
+  test does not catch it.
 - Register it: `<bundle>/app` in the root `pnpm-workspace.yaml`, then `pnpm install
   --lockfile-only`.
 - Check it with `pnpm run typecheck && pnpm run test && pnpm run build` from `<bundle>/app`.
@@ -358,6 +368,8 @@ What each failure has meant:
 | `no snippet registered for uri` | Two modules with identical bytes | Unique markers (Step 4) |
 | `capability "data.query" failed` | A `DECIMAL` or `TIMESTAMPTZ` column, or a dataset not loaded | The casts (Step 5); check `data-init` output |
 | No products / wrong organization | Pack org ≠ run org, or a repository that read the fixture | `ORG_ID` on export; lazy source reads |
+| The workflow stays on its old version after register | The cell refused the manifest | `grep "bundle load failed" tools/cli/.craft/local.log` names the field |
+| The run succeeds but has no report view, or nothing under Artifacts | App not named after the report component; no `pdf` node | Step 6 |
 
 The server hides a capability's exception from the tenant. To see it locally, add the exception to
 the `"capability %s failed"` warning in `executor/job/capability_server.py`, then restart only the
