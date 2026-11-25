@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/lint-changed.sh $CLAUDE_FILE_PATH"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/lint-changed.sh"
           }
         ]
       }
