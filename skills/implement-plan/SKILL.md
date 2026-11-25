@@ -159,6 +159,7 @@ After implementing a phase:
   - Common locations: `Makefile`, `package.json`, `pom.xml`, `build.gradle`, `Rakefile`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `mix.exs`, etc.
 - Ensure both new tests AND existing tests pass (no regressions)
 - Fix any issues before proceeding
+- **Pass every check in [Before Handing Over a Phase](#before-handing-over-a-phase)** — only then check items off and pause
 - Update your progress in both the plan and your todos
 - Check off completed items in the plan file itself using Edit
 - **Pause for human verification**: After completing all automated verification for a phase, pause and inform the human that the phase is ready for manual testing. Use this format:
@@ -167,10 +168,13 @@ After implementing a phase:
 
   Automated verification passed:
   - ✅ Unit tests: X/X passing (ran [test command])
-  - ✅ All tests: X/X passing (no regressions)
+  - ✅ All tests: X/X passing with CI's test command(s) for every touched service (no regressions)
   - ✅ Type checking: No errors (if applicable)
   - ✅ Linting: No errors
+  - ✅ Independent review: no open blockers ([N] found and fixed)
   - [List other automated checks that passed]
+
+  Changed expectations in existing tests: [test → why the old expectation was wrong], or "none"
 
   Please perform the manual verification steps listed in the plan:
   - [List manual verification items from the plan]
@@ -181,6 +185,38 @@ After implementing a phase:
 If instructed to execute multiple phases consecutively, skip the pause until the last phase. Otherwise, assume you are just doing one phase.
 
 do not check off items in the manual testing steps until confirmed by the user.
+
+## Before Handing Over a Phase
+
+A phase is not done, and must not be reported as done, until every check below holds. A phase can
+pass its own new tests and still break a caller nobody ran, or hide a regression behind an edited
+test.
+
+1. **Read every caller before changing a contract.** Before you change a function's signature, its
+   return type, whether it is sync or async, or which thread or event loop it runs on, grep for
+   every call site and read each one. Update them all in this phase, or keep the old contract and
+   add a new function.
+2. **Run what CI runs, not a subset.** For every service or package you touched, run the test
+   command(s) its CI job runs. Read them from the CI config: some repos list test files
+   explicitly, and hand-picked files miss the existing tests that would catch a broken caller. If
+   some of those tests need something you cannot run locally (secrets, a database, a cluster), run
+   all the rest and name the ones you skipped, and why, in the phase report.
+3. **Never loosen an existing test to make it pass.** When an existing test fails, assume the code
+   is wrong until you can say why the test's old expectation is wrong. If you do change an existing
+   test's expectation (or `/verify-and-fix` does), list each change and its reason in the phase
+   report so the human can check it.
+4. **Planned tests are part of the phase.** Write every test the plan lists for this phase. Do not
+   check off a change, or report the phase complete, while one of its planned tests is missing.
+5. **Get an independent review, then fix what it finds.** Run `/verify-and-fix <TICKET>` (add
+   `--skip-evals` if the ticket has no evals); its review gate runs `/run-code-review` in fresh
+   agents. If the phase is not committed yet, do not rely on that alone: the generic reviewers diff
+   `main...HEAD`, which leaves uncommitted work out. Dispatch a fresh review agent yourself on
+   `git diff origin/main` (committed and uncommitted). Either way, give the reviewer the diff, this
+   phase of the plan, and the callers of every changed function, not your own reasoning or
+   conclusions. Fix every blocker and re-run checks 2 and 5, for up to 3 rounds; if blockers remain,
+   report them instead of reporting the phase done.
+
+Only then update the plan and pause for human verification.
 
 
 ## If You Get Stuck
@@ -301,6 +337,7 @@ A good implementation plan should:
 - [ ] All existing tests still pass: Verify no regressions
 - [ ] Type checking passes: If applicable (e.g., `make check`, `tsc`, `mypy`)
 - [ ] Linting passes: Run project linter (e.g., `make lint`, `eslint`, `ruff`, `golangci-lint`)
+- [ ] Handover gate passed: CI's test commands, no loosened tests, planned tests written, independent review clean
 
 **Manual:**
 - [ ] Verify behavior Z in UI/CLI
